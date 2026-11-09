@@ -14,9 +14,17 @@ function StormList({ minimum, range, sort }: { minimum: number; range?: Range; s
       {storms => storms.length ? (
         <ul className="divide-y divide-[#eaeaea]">
           {(sort === 'date' ? [...storms].sort((a, b) => Date.parse(b.start) - Date.parse(a.start)) : storms).map(storm => (
-            <li key={storm.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+            <li key={storm.id} className="py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
               <time dateTime={storm.start}>{utc(storm.start)}</time>
               <span className="mono text-sm">Kp {kp(storm.peak_kp)} · G{storm.level}</span>
+              </div>
+              <details className="mt-2 text-sm">
+                <summary className="cursor-pointer">Связанные события</summary>
+                {storm.linked_events.length
+                  ? <ul className="mt-2 break-all">{storm.linked_events.map(id => <li key={id}>{id}</li>)}</ul>
+                  : <p className="muted mt-2">Связи не указаны.</p>}
+              </details>
             </li>
           ))}
         </ul>
