@@ -9,7 +9,7 @@ use std::{env, sync::Arc};
 
 use axum::{
     Json, Router,
-    extract::{Query, State},
+    extract::{Query, State, rejection::QueryRejection},
     http::{HeaderMap, HeaderValue, StatusCode},
     routing::get,
 };
@@ -107,8 +107,9 @@ struct StormFilter {
 
 async fn storms(
     State(feeds): AppState,
-    Query(filter): Query<StormFilter>,
+    query: Result<Query<StormFilter>, QueryRejection>,
 ) -> Result<ApiResponse<Vec<Storm>>, ApiError> {
+    let Query(filter) = query.map_err(|_| api_error(StatusCode::BAD_REQUEST, "invalid_query"))?;
     let min = filter.min_kp.unwrap_or(5.0);
     if !(5.0..=9.0).contains(&min) {
         return Err(api_error(StatusCode::BAD_REQUEST, "invalid_min_kp"));
@@ -142,8 +143,9 @@ struct AuroraEstimate {
 
 async fn aurora(
     State(feeds): AppState,
-    Query(point): Query<Coordinates>,
+    query: Result<Query<Coordinates>, QueryRejection>,
 ) -> Result<ApiResponse<AuroraEstimate>, ApiError> {
+    let Query(point) = query.map_err(|_| api_error(StatusCode::BAD_REQUEST, "invalid_query"))?;
     if !valid_coordinates(point.lat, point.lon) {
         return Err(api_error(StatusCode::BAD_REQUEST, "invalid_coordinates"));
     }
