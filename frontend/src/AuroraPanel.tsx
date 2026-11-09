@@ -53,6 +53,7 @@ export function AuroraPanel() {
   const [coordinates, setCoordinates] = useState(initial.coordinates);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState(false);
+  const [coordinateErrors, setCoordinateErrors] = useState({ lat: false, lon: false });
   const matching = cities.map((item, index) => ({ ...item, index })).filter(
     item => normalizeName(placeLabel(item)).includes(normalizeName(search)),
   );
@@ -77,6 +78,7 @@ export function AuroraPanel() {
     }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(position => {
+      setCoordinateErrors({ lat: false, lon: false });
       setCoordinates({
         lat: position.coords.latitude.toFixed(5),
         lon: position.coords.longitude.toFixed(5),
@@ -147,8 +149,25 @@ export function AuroraPanel() {
           {locationError && <p role="status" className="muted text-sm">Не удалось определить местоположение. Введите координаты вручную.</p>}
           {custom && (
             <div className="grid gap-3 min-[360px]:grid-cols-2">
-              <label className="grid gap-1 text-sm">Широта<input name="lat" value={coordinates.lat} onChange={event => setCoordinates({ ...coordinates, lat: event.target.value })} type="number" min="-90" max="90" step="any" required /></label>
-              <label className="grid gap-1 text-sm">Долгота<input name="lon" value={coordinates.lon} onChange={event => setCoordinates({ ...coordinates, lon: event.target.value })} type="number" min="-180" max="180" step="any" required /></label>
+              {(['lat', 'lon'] as const).map(field => {
+                const isLatitude = field === 'lat';
+                const limit = isLatitude ? 90 : 180;
+                return (
+                  <label key={field} className="grid gap-1 text-sm">
+                    {isLatitude ? 'Широта' : 'Долгота'}
+                    <input name={field} value={coordinates[field]} onChange={event => {
+                      setCoordinates({ ...coordinates, [field]: event.target.value });
+                      setCoordinateErrors(previous => ({ ...previous, [field]: false }));
+                    }} onInvalid={() => setCoordinateErrors(previous => ({ ...previous, [field]: true }))}
+                      aria-invalid={coordinateErrors[field]}
+                      aria-describedby={coordinateErrors[field] ? field + '-error' : undefined}
+                      type="number" min={-limit} max={limit} step="any" required />
+                    {coordinateErrors[field] && <span id={field + '-error'} role="alert" className="field-error">
+                      Введите число от {String(-limit)} до {limit}.
+                    </span>}
+                  </label>
+                );
+              })}
             </div>
           )}
           <button className="primary" type="submit" disabled={!selected}>Проверить мой город</button>
@@ -186,6 +205,7 @@ export function AuroraPanel() {
     </section>
   );
 }
+
 
 
 

@@ -81,3 +81,16 @@ test('preserves the aurora form at 200% zoom', async ({ page }) => {
   await expect(page.getByText('24%', { exact: true })).toBeVisible();
 });
 
+test('shows a linked inline error for out-of-range coordinates', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('combobox', { name: 'Город', exact: true }).selectOption('custom');
+  const latitude = page.locator('input[name="lat"]');
+  await latitude.fill('91');
+  await page.getByLabel('Долгота').fill('0');
+  await page.getByRole('button', { name: 'Проверить мой город' }).click();
+  await expect(latitude).toHaveAttribute('aria-invalid', 'true');
+  await expect(latitude).toHaveAccessibleDescription('Введите число от -90 до 90.');
+  await latitude.fill('69');
+  await expect(latitude).toHaveAttribute('aria-invalid', 'false');
+});
+

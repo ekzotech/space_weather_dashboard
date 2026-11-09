@@ -45,3 +45,6 @@ th, td { padding: .3rem .25rem; border-bottom: 1px solid var(--line); }
 .skip-link { position: absolute; z-index: 2; top: .5rem; left: .5rem; padding: .65rem 1rem; background: #fff; transform: translateY(-200%); }
 .skip-link:focus { transform: none; }
 
+.field-error { color: #9f2f2d; }
+input[aria-invalid='true'] { border-color: #9f2f2d; }
+
