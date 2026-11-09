@@ -43,3 +43,19 @@ test('semantic warning and muted text meet AA contrast', async ({ page }) => {
   }
 });
 
+test('opens an aurora estimate with the keyboard only', async ({ page }) => {
+  await page.goto('/');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('link', { name: 'Перейти к содержимому' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('main')).toBeFocused();
+
+  const check = page.getByRole('button', { name: 'Проверить мой город' });
+  for (let index = 0; index < 30 && !await check.evaluate(node => node === document.activeElement); index++) {
+    await page.keyboard.press('Tab');
+  }
+  await expect(check).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('24%', { exact: true })).toBeVisible();
+});
+
