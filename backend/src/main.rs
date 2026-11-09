@@ -29,12 +29,24 @@ fn api_error(status: StatusCode, code: &str) -> ApiError {
 }
 
 fn upstream(source: &str, error: FeedError) -> ApiError {
-    match error {
-        FeedError::Http(error) => eprintln!("{source}: {error}"),
-        FeedError::InvalidJson(error) => eprintln!("{source}: {error}"),
-        FeedError::TooLarge => eprintln!("{source}: response exceeded the size limit"),
-    }
-    api_error(StatusCode::BAD_GATEWAY, "upstream_unavailable")
+    let (status, code) = match error {
+        FeedError::Http(error) => {
+            eprintln!("{source}: {error}");
+            match error.status() {
+                Some(StatusCode::TOO_MANY_REQUESTS) => {
+                    (StatusCode::SERVICE_UNAVAILABLE, "upstream_rate_limited")
+                }
+                _ if error.is_timeout() => (StatusCode::GATEWAY_TIMEOUT, "upstream_timeout"),
+                _ => (StatusCode::BAD_GATEWAY, "upstream_unavailable"),
+            }
+        }
+        FeedError::InvalidJson(error) => {
+            eprintln!("{source}: {error}");
+            (StatusCode::BAD_GATEWAY, "upstream_invalid_json")
+        }
+        FeedError::TooLarge => (StatusCode::BAD_GATEWAY, "upstream_response_too_large"),
+    };
+    api_error(status, code)
 }
 
 async fn kp(State(feeds): AppState) -> Result<Json<Vec<Sample>>, ApiError> {
