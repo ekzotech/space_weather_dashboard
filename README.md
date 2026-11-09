@@ -15,7 +15,7 @@ npm ci --prefix frontend
 npm run dev --prefix frontend
 ```
 
-Откройте [дашборд](http://localhost:5173). Vite проксирует `/api` на `127.0.0.1:3000`. Адрес API настраивается через `BIND_ADDR` у Axum и `API_ORIGIN` у Vite. Для отдельной публикации сборки потребуется проксировать `/api` с того же домена на Axum.
+Откройте [дашборд](http://localhost:5173). Vite проксирует `/api` на `127.0.0.1:3000`. Адрес API настраивается через `BIND_ADDR` у Axum и `API_ORIGIN` у Vite. Для запуска сборки с одного адреса выполните `npm run build --prefix frontend`, задайте `STATIC_DIR=frontend/dist` в окружении Axum и запустите сервер. Страница и API будут доступны на порту 3000.
 
 NOAA SWPC и прямой API NASA CCMC DONKI доступны без ключей.
 
@@ -55,6 +55,7 @@ npm run test:e2e
 Playwright запускает Vite и подставляет ответы API. Основные сценарии проверяются в настольном и мобильном Chromium. Отрисовку графиков и предупреждений дополнительно проверяем в Firefox и WebKit.
 
 [План разработки](docs/ROADMAP.md)
+
 
 
 

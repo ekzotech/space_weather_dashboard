@@ -6,7 +6,7 @@ mod nasa;
 mod noaa;
 mod sun;
 
-use std::{env, sync::Arc};
+use std::{env, path::Path, sync::Arc};
 
 use axum::{
     Json, Router,
@@ -17,6 +17,7 @@ use axum::{
 use chrono::{DateTime, Days, Duration, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use tower_http::services::ServeDir;
 
 use aurora::valid_coordinates;
 use cache::Cached;
@@ -221,10 +222,20 @@ fn router(feeds: Feeds) -> Router {
         .with_state(Arc::new(feeds))
 }
 
+fn with_static(app: Router, directory: impl AsRef<Path>) -> Router {
+    app.fallback_service(ServeDir::new(directory))
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:3000".into());
-    let app = router(Feeds::new()?);
+    let mut app = router(Feeds::new()?);
+    if let Some(directory) = env::var_os("STATIC_DIR") {
+        if !Path::new(&directory).join("index.html").is_file() {
+            return Err("STATIC_DIR must contain the built index.html".into());
+        }
+        app = with_static(app, directory);
+    }
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     println!("Space Weather API at http://{}", listener.local_addr()?);
