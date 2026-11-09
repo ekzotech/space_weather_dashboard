@@ -5,6 +5,7 @@ export type Storm = { id: string; start: string; peak_kp: number; level: number;
 export type Aurora = {
   probability: number | null;
   grid_distance_km: number | null;
+  sun_elevation_deg: number | null;
   observation_time: string;
   forecast_time: string;
   stale: boolean;

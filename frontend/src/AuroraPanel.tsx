@@ -159,6 +159,10 @@ export function AuroraPanel() {
             {result.data.grid_distance_km != null && <p className="muted mt-2 text-sm">
               До центра ячейки OVATION · {Math.round(result.data.grid_distance_km)} км
             </p>}
+            {result.data.sun_elevation_deg != null && <p className="muted mt-2 text-sm">
+              Солнце на время прогноза · {Math.round(result.data.sun_elevation_deg)}°
+              {' · '}{result.data.sun_elevation_deg <= -18 ? 'темно' : result.data.sun_elevation_deg < 0 ? 'сумерки' : 'дневной свет'}
+            </p>}
             <p className="muted mt-2 text-sm">Наблюдение модели · {utc(result.data.observation_time)}</p>
             <p className="muted mt-1 text-sm">Время прогноза · {utc(result.data.forecast_time)}</p>
           </>

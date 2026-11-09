@@ -4,6 +4,7 @@ mod domain;
 mod feeds;
 mod nasa;
 mod noaa;
+mod sun;
 
 use std::{env, sync::Arc};
 
@@ -137,6 +138,7 @@ struct Coordinates {
 struct AuroraEstimate {
     probability: Option<i16>,
     grid_distance_km: Option<f64>,
+    sun_elevation_deg: Option<f64>,
     observation_time: DateTime<Utc>,
     forecast_time: DateTime<Utc>,
     stale: bool,
@@ -164,6 +166,8 @@ async fn aurora(
             probability,
             grid_distance_km: probability
                 .map(|_| aurora::AuroraGrid::distance_to_cell_km(point.lat, point.lon)),
+            sun_elevation_deg: (!stale)
+                .then(|| sun::elevation(point.lat, point.lon, grid.value.forecast_time)),
             observation_time: grid.value.observation_time,
             forecast_time: grid.value.forecast_time,
             stale,

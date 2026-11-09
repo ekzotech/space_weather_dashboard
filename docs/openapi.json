@@ -418,7 +418,8 @@
                   "observation_time": "2020-01-01T00:00:00Z",
                   "forecast_time": "2020-01-01T00:30:00Z",
                   "stale": true,
-                  "grid_distance_km": null
+                  "grid_distance_km": null,
+                  "sun_elevation_deg": null
                 }
               }
             }
@@ -527,7 +528,8 @@
           "observation_time",
           "forecast_time",
           "stale",
-          "grid_distance_km"
+          "grid_distance_km",
+          "sun_elevation_deg"
         ],
         "properties": {
           "probability": {
@@ -555,6 +557,14 @@
               "null"
             ],
             "minimum": 0
+          },
+          "sun_elevation_deg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": -90,
+            "maximum": 90
           }
         }
       },
