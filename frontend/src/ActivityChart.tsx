@@ -1,7 +1,22 @@
 import { useEffect, useRef } from 'react';
-import { Chart, LineController, LineElement, PointElement, LinearScale, LogarithmicScale, Tooltip } from 'chart.js';
+import { Chart, type Plugin, LineController, LineElement, PointElement, LinearScale, LogarithmicScale, Tooltip } from 'chart.js';
 import type { Sample } from './api';
 import { utc } from './format';
+
+const stormThreshold: Plugin<'line'> = {
+  id: 'stormThreshold',
+  afterDatasetsDraw({ ctx, chartArea, scales }) {
+    const y = scales.y.getPixelForValue(5);
+    ctx.save();
+    ctx.strokeStyle = '#956400';
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(chartArea.left, y);
+    ctx.lineTo(chartArea.right, y);
+    ctx.stroke();
+    ctx.restore();
+  },
+};
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, LogarithmicScale, Tooltip);
 
@@ -16,6 +31,7 @@ export function ActivityChart({ points, title, solar = false }: {
     if (!canvas.current || !points.length) return;
     const chart = new Chart(canvas.current, {
       type: 'line',
+      plugins: solar ? [] : [stormThreshold],
       data: {
         datasets: [{
           data: points.map(point => ({ x: Date.parse(point.time), y: point.value })),
@@ -70,6 +86,7 @@ export function ActivityChart({ points, title, solar = false }: {
       <figcaption className="muted mt-3 text-sm">
         {points.length} измерений · последнее {utc(points[points.length - 1].time)}
       </figcaption>
+      {!solar && <p className="muted mt-1 text-xs">Пунктир · порог бури Kp 5</p>}
       <details className="mt-3 text-sm">
         <summary className="cursor-pointer">Последние измерения</summary>
         <table className="mt-2 w-full text-left">
@@ -84,4 +101,5 @@ export function ActivityChart({ points, title, solar = false }: {
     </figure>
   );
 }
+
 
