@@ -126,3 +126,39 @@ async fn suppresses_expired_ovation_probability() {
     assert_eq!(result["probability"], Value::Null);
     provider.abort();
 }
+
+#[tokio::test]
+async fn openapi_examples_match_live_response_shapes() {
+    let spec: Value = serde_json::from_str(include_str!("../../docs/openapi.json")).unwrap();
+    let upstream = Router::new()
+        .route("/products/noaa-planetary-k-index.json", get(|| async {
+            Json(json!([{"time_tag":"2026-01-01T00:00:00","Kp":6.33}]))
+        }))
+        .route("/json/goes/primary/xrays-1-day.json", get(|| async {
+            Json(json!([{"time_tag":"2026-01-01T00:00:00Z","energy":"0.1-0.8nm","flux":0.000002}]))
+        }))
+        .route("/json/ovation_aurora_latest.json", get(|| async {
+            Json(json!({"Observation Time":"2020-01-01T00:00:00Z","Forecast Time":"2020-01-01T00:30:00Z","coordinates":[[0,65,70]]}))
+        }))
+        .route("/gst", get(|| async {
+            Json(json!([{"gstID":"GST-001","startTime":"2026-01-01T00:00Z","allKpIndex":[{"kpIndex":6.33}],"linkedEvents":[{"activityID":"CME-001"}]}]))
+        }));
+    let (base, provider) = start(upstream).await;
+    let app = router(Feeds::new().unwrap().test_sources(&base));
+    for (path, query) in [
+        ("/api/health", ""),
+        ("/api/kp", ""),
+        ("/api/xray", ""),
+        ("/api/storms", ""),
+        ("/api/aurora", "?lat=65&lon=0"),
+    ] {
+        let (status, body) = request(app.clone(), &format!("{path}{query}")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            body,
+            spec["paths"][path]["get"]["responses"]["200"]["content"]["application/json"]["example"],
+            "{path}"
+        );
+    }
+    provider.abort();
+}
