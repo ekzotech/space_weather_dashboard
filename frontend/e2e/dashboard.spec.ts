@@ -104,3 +104,22 @@ test('exports only the visible Kp period and the separate GOES series', async ({
   expect(await readFile(await goes.path(), 'utf8')).toBe('time_utc,watts_per_square_metre\r\n' + first + ',1e-7\r\n' + second + ',0.000002\r\n');
 });
 
+
+test('groups contiguous storm intervals and handles calm or missing forecasts', async ({ page }) => {
+  const third = '2026-10-10T06:00:00Z';
+  let forecast = [{ time: first, value: 5 }, { time: second, value: 7 }, { time: third, value: 2 }];
+  await page.route('**/api/forecast', route => route.fulfill({ json: forecast }));
+  await page.goto('/');
+  await expect(page.getByText('Ожидается G3')).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Окна бурь' }).getByRole('listitem')).toHaveCount(1);
+  await expect(page.getByRole('list', { name: 'Окна бурь' })).toContainText('пик Kp 7 · G3');
+
+  await page.getByRole('combobox', { name: 'Порог предупреждений' }).selectOption('8');
+  await expect(page.getByText('Kp ниже 8', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('combobox', { name: 'Порог предупреждений' })).toHaveValue('8');
+  forecast = [];
+  await page.reload();
+  await expect(page.getByText('Актуального прогноза пока нет.')).toBeVisible();
+});
+
