@@ -28,10 +28,29 @@ type Result =
   | { status: 'error' }
   | { status: 'ready'; place: string; data: Aurora };
 
+const initialPlace = { city: '0', coordinates: { lat: '', lon: '' } };
+
+function savedPlace(): typeof initialPlace {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem('aurora-place') ?? 'null');
+    if (saved?.city === 'custom' && typeof saved.coordinates?.lat === 'string' && typeof saved.coordinates?.lon === 'string') {
+      const { lat, lon } = saved.coordinates;
+      if (lat.trim() && lon.trim() && Math.abs(Number(lat)) <= 90 && Math.abs(Number(lon)) <= 180) {
+        return { city: 'custom', coordinates: { lat, lon } };
+      }
+    }
+    if (typeof saved?.city === 'string' && cities.some((_, index) => String(index) === saved.city)) {
+      return { ...initialPlace, city: saved.city };
+    }
+  } catch { /* storage unavailable */ }
+  return initialPlace;
+}
+
 export function AuroraPanel() {
-  const [city, setCity] = useState('0');
+  const [initial] = useState(savedPlace);
+  const [city, setCity] = useState(initial.city);
   const [search, setSearch] = useState('');
-  const [coordinates, setCoordinates] = useState({ lat: '', lon: '' });
+  const [coordinates, setCoordinates] = useState(initial.coordinates);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState(false);
   const matching = cities.map((item, index) => ({ ...item, index })).filter(
@@ -72,6 +91,12 @@ export function AuroraPanel() {
     const point = custom
       ? { name: 'Выбранные координаты', lat: Number(form.get('lat')), lon: Number(form.get('lon')) }
       : cities[Number(selected)];
+    try {
+      window.localStorage.setItem('aurora-place', JSON.stringify({
+        city: selected,
+        coordinates: custom ? coordinates : initialPlace.coordinates,
+      }));
+    } catch { /* storage unavailable */ }
     setResult({ status: 'loading' });
     try {
       const query = new URLSearchParams({ lat: String(point.lat), lon: String(point.lon) });
