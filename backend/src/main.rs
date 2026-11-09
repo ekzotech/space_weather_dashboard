@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 
 use aurora::valid_coordinates;
 use domain::{Sample, Storm, rank_storms};
-use feeds::Feeds;
+use feeds::{FeedError, Feeds};
 
 type AppState = State<Arc<Feeds>>;
 type ApiError = (StatusCode, Json<Value>);
@@ -28,8 +28,12 @@ fn api_error(status: StatusCode, code: &str) -> ApiError {
     (status, Json(json!({ "error": code })))
 }
 
-fn upstream(source: &str, error: reqwest::Error) -> ApiError {
-    eprintln!("{source}: {}", error.without_url());
+fn upstream(source: &str, error: FeedError) -> ApiError {
+    match error {
+        FeedError::Http(error) => eprintln!("{source}: {error}"),
+        FeedError::InvalidJson(error) => eprintln!("{source}: {error}"),
+        FeedError::TooLarge => eprintln!("{source}: response exceeded the size limit"),
+    }
     api_error(StatusCode::BAD_GATEWAY, "upstream_unavailable")
 }
 

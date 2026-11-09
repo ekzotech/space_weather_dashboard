@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use chrono::{Days, Utc};
-use reqwest::Client;
+use reqwest::{Client, RequestBuilder};
 use serde::de::DeserializeOwned;
 
 use crate::{
@@ -11,6 +11,39 @@ use crate::{
     nasa::DonkiStorm,
     noaa::{kp_series, xray_series},
 };
+
+const MAX_FEED_BYTES: usize = 4 * 1024 * 1024;
+
+#[derive(Debug)]
+pub enum FeedError {
+    Http(reqwest::Error),
+    TooLarge,
+    InvalidJson(serde_json::Error),
+}
+
+impl From<reqwest::Error> for FeedError {
+    fn from(error: reqwest::Error) -> Self {
+        Self::Http(error.without_url())
+    }
+}
+
+async fn fetch_json<T: DeserializeOwned>(request: RequestBuilder) -> Result<T, FeedError> {
+    let mut response = request.send().await?.error_for_status()?;
+    if response
+        .content_length()
+        .is_some_and(|size| size > MAX_FEED_BYTES as u64)
+    {
+        return Err(FeedError::TooLarge);
+    }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        if chunk.len() > MAX_FEED_BYTES - bytes.len() {
+            return Err(FeedError::TooLarge);
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    serde_json::from_slice(&bytes).map_err(FeedError::InvalidJson)
+}
 
 const NOAA: &str = "https://services.swpc.noaa.gov";
 
@@ -39,17 +72,11 @@ impl Feeds {
         })
     }
 
-    async fn noaa<T: DeserializeOwned>(&self, path: &str) -> Result<T, reqwest::Error> {
-        self.client
-            .get(format!("{NOAA}/{path}"))
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await
+    async fn noaa<T: DeserializeOwned>(&self, path: &str) -> Result<T, FeedError> {
+        fetch_json(self.client.get(format!("{NOAA}/{path}"))).await
     }
 
-    pub async fn kp(&self) -> Result<Arc<Vec<Sample>>, reqwest::Error> {
+    pub async fn kp(&self) -> Result<Arc<Vec<Sample>>, FeedError> {
         self.kp
             .get(async {
                 Ok(kp_series(
@@ -60,7 +87,7 @@ impl Feeds {
             .await
     }
 
-    pub async fn forecast(&self) -> Result<Arc<Vec<Sample>>, reqwest::Error> {
+    pub async fn forecast(&self) -> Result<Arc<Vec<Sample>>, FeedError> {
         self.forecast
             .get(async {
                 Ok(kp_series(
@@ -72,7 +99,7 @@ impl Feeds {
             .await
     }
 
-    pub async fn xray(&self) -> Result<Arc<Vec<Sample>>, reqwest::Error> {
+    pub async fn xray(&self) -> Result<Arc<Vec<Sample>>, FeedError> {
         self.xray
             .get(async {
                 Ok(xray_series(
@@ -82,7 +109,7 @@ impl Feeds {
             .await
     }
 
-    pub async fn aurora(&self) -> Result<Arc<AuroraGrid>, reqwest::Error> {
+    pub async fn aurora(&self) -> Result<Arc<AuroraGrid>, FeedError> {
         self.aurora
             .get(async {
                 Ok(AuroraGrid::from(
@@ -93,22 +120,20 @@ impl Feeds {
             .await
     }
 
-    pub async fn storms(&self) -> Result<Arc<Vec<DonkiStorm>>, reqwest::Error> {
+    pub async fn storms(&self) -> Result<Arc<Vec<DonkiStorm>>, FeedError> {
         self.storms
             .get(async {
                 let end = Utc::now().date_naive();
                 let start = end - Days::new(30);
-                self.client
-                    .get("https://ccmc.gsfc.nasa.gov/DONKI-API/get/GST")
-                    .query(&[
-                        ("startDate", start.to_string()),
-                        ("endDate", end.to_string()),
-                    ])
-                    .send()
-                    .await?
-                    .error_for_status()?
-                    .json()
-                    .await
+                fetch_json(
+                    self.client
+                        .get("https://ccmc.gsfc.nasa.gov/DONKI-API/get/GST")
+                        .query(&[
+                            ("startDate", start.to_string()),
+                            ("endDate", end.to_string()),
+                        ]),
+                )
+                .await
             })
             .await
     }
