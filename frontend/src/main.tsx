@@ -4,6 +4,7 @@ import { ActivityChart } from './ActivityChart';
 import { useFeed, type Sample } from './api';
 import { AuroraPanel } from './AuroraPanel';
 import { FeedContent } from './FeedContent';
+import { KpPanel } from './KpPanel';
 import { Overview } from './Overview';
 import { StormArchive } from './StormArchive';
 import './styles.css';
@@ -32,14 +33,7 @@ function Dashboard() {
         </section>
         <Overview observations={observations} />
         <div className="charts mt-4 grid gap-4 lg:grid-cols-[1.25fr_1fr]">
-          <section className="panel min-w-0" aria-labelledby="kp-title">
-            <p className="eyebrow">01 / NOAA SWPC</p>
-            <h2 id="kp-title">Геомагнитная активность</h2>
-            <p className="muted mb-4 mt-1 text-sm">Планетарный Kp · последние 7 дней · UTC</p>
-            <FeedContent feed={observations}>
-              {points => <ActivityChart points={points} title="График планетарного Kp" />}
-            </FeedContent>
-          </section>
+          <KpPanel observations={observations} />
           <section className="panel min-w-0" aria-labelledby="solar-title">
             <p className="eyebrow">02 / NOAA GOES</p>
             <h2 id="solar-title">Солнечная активность</h2>
@@ -66,4 +60,5 @@ function Dashboard() {
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><Dashboard /></StrictMode>);
+
 
