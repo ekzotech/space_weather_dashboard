@@ -19,6 +19,10 @@ function placeLabel(place: { name: string; region?: string }) {
   return place.region ? place.name + ' · ' + place.region : place.name;
 }
 
+function normalizeName(text: string) {
+  return text.trim().toLocaleLowerCase('ru').replaceAll('ё', 'е');
+}
+
 type Result =
   | { status: 'loading' }
   | { status: 'error' }
@@ -28,7 +32,7 @@ export function AuroraPanel() {
   const [city, setCity] = useState('0');
   const [search, setSearch] = useState('');
   const matching = cities.map((item, index) => ({ ...item, index })).filter(
-    item => item.name.toLocaleLowerCase('ru').includes(search.trim().toLocaleLowerCase('ru')),
+    item => normalizeName(placeLabel(item)).includes(normalizeName(search)),
   );
   const selected = city === 'custom' || matching.some(item => String(item.index) === city)
     ? city : matching.length === 1 ? String(matching[0].index) : '';
