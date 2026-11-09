@@ -59,3 +59,12 @@ test('opens an aurora estimate with the keyboard only', async ({ page }) => {
   await expect(page.getByText('24%', { exact: true })).toBeVisible();
 });
 
+test('fits a 320px screen with both chart tables expanded', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto('/');
+  await expect(page.getByText('Последние измерения')).toHaveCount(2);
+  for (const summary of await page.getByText('Последние измерения').all()) await summary.click();
+  await expect(page.getByRole('table')).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+});
+
