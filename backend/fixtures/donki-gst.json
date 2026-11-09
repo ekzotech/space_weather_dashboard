@@ -1,0 +1,19 @@
+[
+  {
+    "gstID": "2024-05-10T18:00:00-GST-001",
+    "startTime": "2024-05-10T18:00Z",
+    "allKpIndex": [
+      {"observedTime": "2024-05-10T18:00Z", "kpIndex": 5.33, "source": "NOAA"},
+      {"observedTime": "2024-05-10T21:00Z", "kpIndex": 8.67, "source": "NOAA"},
+      {"observedTime": "2024-05-11T00:00Z", "kpIndex": 99, "source": "NOAA"}
+    ],
+    "linkedEvents": [{"activityID": "2024-05-08T05:36:00-CME-001"}]
+  },
+  {
+    "gstID": "2024-05-13T00:00:00-GST-001",
+    "startTime": "2024-05-13T00:00Z",
+    "allKpIndex": null,
+    "linkedEvents": null
+  }
+]
+
