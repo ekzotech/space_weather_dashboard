@@ -173,7 +173,7 @@ export function AuroraPanel() {
           <button className="primary" type="submit" disabled={!selected}>Проверить мой город</button>
         </fieldset>
       </form>
-      <div className="result mt-5" aria-live="polite">
+      <div className="result mt-5" role="status" aria-live="polite" aria-atomic="true">
         {!result && <p className="muted">Оценка появится после проверки.</p>}
         {result?.status === 'loading' && <p>Проверяем прогноз…</p>}
         {result?.status === 'error' && <p>Не удалось получить прогноз. Попробуйте ещё раз.</p>}

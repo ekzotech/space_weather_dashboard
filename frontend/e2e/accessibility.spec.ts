@@ -94,3 +94,15 @@ test('shows a linked inline error for out-of-range coordinates', async ({ page }
   await expect(latitude).toHaveAttribute('aria-invalid', 'false');
 });
 
+test('exposes the changing aurora result as an accessible status', async ({ page }) => {
+  await page.goto('/');
+  const aurora = page.getByRole('region', { name: 'Северное сияние' });
+  const status = aurora.getByRole('status');
+  expect(await status.ariaSnapshot()).toContain('Оценка появится после проверки.');
+  await aurora.getByRole('button', { name: 'Проверить мой город' }).click();
+  await expect(status).toContainText('24%');
+  expect(await status.ariaSnapshot()).toContain('24%');
+  await expect(status).toHaveAttribute('aria-live', 'polite');
+  await expect(status).toHaveAttribute('aria-atomic', 'true');
+});
+
