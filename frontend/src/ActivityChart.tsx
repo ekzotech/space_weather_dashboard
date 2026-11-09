@@ -46,17 +46,18 @@ export function ActivityChart({ points, title, solar = false }: {
 
   useEffect(() => {
     if (!canvas.current || !points.length) return;
+    const data = chartPoints(points, solar ? 60_000 : 10_800_000);
     const chart = new Chart(canvas.current, {
       type: 'line',
       plugins: solar ? [] : [stormThreshold],
       data: {
         datasets: [{
-          data: chartPoints(points, solar ? 60_000 : 10_800_000),
+          data,
           borderColor: solar ? '#95553c' : '#34604f',
           borderWidth: 2,
-          pointRadius: ({ dataset, dataIndex }) => {
-            const previous = dataset.data[dataIndex - 1];
-            const next = dataset.data[dataIndex + 1];
+          pointRadius: ({ dataIndex }) => {
+            const previous = data[dataIndex - 1];
+            const next = data[dataIndex + 1];
             return previous?.y == null && next?.y == null ? 3 : 0;
           },
           pointHoverRadius: 4,
@@ -140,6 +141,7 @@ export function ActivityChart({ points, title, solar = false }: {
     </figure>
   );
 }
+
 
 
 
