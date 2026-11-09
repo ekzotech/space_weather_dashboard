@@ -103,3 +103,26 @@ async fn noaa_remains_available_after_a_nasa_failure() {
     );
     provider.abort();
 }
+
+#[tokio::test]
+async fn suppresses_expired_ovation_probability() {
+    let upstream = Router::new().route(
+        "/json/ovation_aurora_latest.json",
+        get(|| async {
+            Json(json!({
+                "Observation Time":"2020-01-01T00:00:00Z", "Forecast Time":"2020-01-01T00:30:00Z",
+                "coordinates":[[0,65,70]]
+            }))
+        }),
+    );
+    let (base, provider) = start(upstream).await;
+    let (status, result) = request(
+        router(Feeds::new().unwrap().test_sources(&base)),
+        "/api/aurora?lat=65&lon=0",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(result["stale"], true);
+    assert_eq!(result["probability"], Value::Null);
+    provider.abort();
+}
