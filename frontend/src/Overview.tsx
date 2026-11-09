@@ -42,7 +42,7 @@ export function Overview({ observations }: { observations: ReturnType<typeof use
                 <p className="badge warning mt-3">Ожидается G{Math.floor(next.peak) - 4}</p>
                 <ul className="mt-2 divide-y divide-[#eaeaea]" aria-label="Окна бурь">
                   {windows.map(window => <li key={window.start} className="py-2 text-sm">
-                    {utc(window.start)} — {utc(window.end)} · Kp {kp(window.peak)}
+                    {utc(window.start)} — {utc(window.end)} · пик Kp {kp(window.peak)} · G{Math.floor(window.peak) - 4}
                   </li>)}
                 </ul>
                 {through}
