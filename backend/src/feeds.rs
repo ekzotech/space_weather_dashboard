@@ -80,6 +80,8 @@ const NOAA: &str = "https://services.swpc.noaa.gov";
 
 pub struct Feeds {
     client: Client,
+    noaa_base: String,
+    nasa_url: String,
     noaa_cooldown: Mutex<Option<Instant>>,
     nasa_cooldown: Mutex<Option<Instant>>,
     kp: Cache<Vec<Sample>>,
@@ -97,6 +99,8 @@ impl Feeds {
                 .timeout(Duration::from_secs(12))
                 .user_agent("SpaceWeatherDashboard/0.1")
                 .build()?,
+            noaa_base: NOAA.into(),
+            nasa_url: "https://ccmc.gsfc.nasa.gov/DONKI-API/get/GST".into(),
             noaa_cooldown: Mutex::new(None),
             nasa_cooldown: Mutex::new(None),
             kp: Cache::new(five_minutes),
@@ -107,9 +111,16 @@ impl Feeds {
         })
     }
 
+    #[cfg(test)]
+    pub fn test_sources(mut self, base: &str) -> Self {
+        self.noaa_base = base.into();
+        self.nasa_url = format!("{base}/gst");
+        self
+    }
+
     async fn noaa<T: DeserializeOwned>(&self, path: &str) -> Result<T, FeedError> {
         fetch_json(
-            self.client.get(format!("{NOAA}/{path}")),
+            self.client.get(format!("{}/{path}", self.noaa_base)),
             &self.noaa_cooldown,
         )
         .await
@@ -165,12 +176,10 @@ impl Feeds {
                 let end = Utc::now().date_naive();
                 let start = end - Days::new(30);
                 fetch_json(
-                    self.client
-                        .get("https://ccmc.gsfc.nasa.gov/DONKI-API/get/GST")
-                        .query(&[
-                            ("startDate", start.to_string()),
-                            ("endDate", end.to_string()),
-                        ]),
+                    self.client.get(&self.nasa_url).query(&[
+                        ("startDate", start.to_string()),
+                        ("endDate", end.to_string()),
+                    ]),
                     &self.nasa_cooldown,
                 )
                 .await

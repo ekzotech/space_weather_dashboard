@@ -61,3 +61,21 @@ async fn rejects_invalid_coordinates() {
         );
     }
 }
+
+#[tokio::test]
+async fn classifies_unavailable_nasa() {
+    let upstream = Router::new().route("/gst", get(|| async { StatusCode::BAD_GATEWAY }));
+    let (base, provider) = start(upstream).await;
+    assert_eq!(
+        request(
+            router(Feeds::new().unwrap().test_sources(&base)),
+            "/api/storms"
+        )
+        .await,
+        (
+            StatusCode::BAD_GATEWAY,
+            json!({"error":"upstream_unavailable"})
+        )
+    );
+    provider.abort();
+}
