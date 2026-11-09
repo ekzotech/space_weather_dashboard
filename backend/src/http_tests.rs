@@ -79,3 +79,27 @@ async fn classifies_unavailable_nasa() {
     );
     provider.abort();
 }
+
+#[tokio::test]
+async fn noaa_remains_available_after_a_nasa_failure() {
+    let upstream = Router::new()
+        .route("/gst", get(|| async { StatusCode::BAD_GATEWAY }))
+        .route(
+            "/products/noaa-planetary-k-index.json",
+            get(|| async { Json(json!([{"time_tag":"2026-01-01T00:00:00","Kp":6.33}])) }),
+        );
+    let (base, provider) = start(upstream).await;
+    let app = router(Feeds::new().unwrap().test_sources(&base));
+    assert_eq!(
+        request(app.clone(), "/api/storms").await.0,
+        StatusCode::BAD_GATEWAY
+    );
+    assert_eq!(
+        request(app, "/api/kp").await,
+        (
+            StatusCode::OK,
+            json!([{"time":"2026-01-01T00:00:00Z","value":6.33}])
+        )
+    );
+    provider.abort();
+}
