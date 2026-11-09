@@ -49,6 +49,10 @@ export function Overview({ observations }: { observations: ReturnType<typeof use
             {[5, 6, 7, 8, 9].map(value => <option key={value} value={value}>Kp {value}</option>)}
           </select>
         </label>
+        {forecast.status === 'error' && forecast.lastSuccess &&
+          <p className="muted mt-2 text-sm">Последний успешный прогноз · {utc(forecast.lastSuccess)}</p>}
+        {forecast.status === 'ready' && forecast.stale &&
+          <p className="muted mt-2 text-sm">Сохранённый прогноз от {utc(forecast.receivedAt)}</p>}
         <FeedContent feed={forecast}>
           {points => {
             const windows = stormWindows(points, threshold);

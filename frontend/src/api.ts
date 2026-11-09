@@ -9,19 +9,28 @@ export type Aurora = {
   stale: boolean;
 };
 
-export async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
+async function fetchFeed<T>(path: string, signal?: AbortSignal) {
   const response = await fetch('/api/' + path, { signal });
   if (!response.ok) throw new Error('HTTP ' + response.status);
-  return response.json();
+  return {
+    data: await response.json() as T,
+    receivedAt: response.headers.get("x-feed-received-at") ?? new Date().toISOString(),
+    stale: response.headers.get("x-feed-stale") === "true",
+  };
 }
 
-type Resource<T> = { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: T };
+export async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
+  return (await fetchFeed<T>(path, signal)).data;
+}
+
+type Resource<T> = { status: 'loading' } | { status: 'error'; lastSuccess?: string } |
+  { status: 'ready'; data: T; receivedAt: string; stale: boolean };
 
 export function useFeed<T>(path: string, interval?: number) {
   const [state, setState] = useState<Resource<T>>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => {
-    setState({ status: 'loading' });
+    // Keep the previous result available if the retry also fails.
     setAttempt(value => value + 1);
   }, []);
 
@@ -34,10 +43,14 @@ export function useFeed<T>(path: string, interval?: number) {
       inFlight = true;
       lastAttempt = Date.now();
       try {
-        const data = await get<T>(path, controller.signal);
-        if (!controller.signal.aborted) setState({ status: 'ready', data });
+        const data = await fetchFeed<T>(path, controller.signal);
+        if (!controller.signal.aborted) setState({ status: 'ready', ...data });
       } catch {
-        if (!controller.signal.aborted) setState({ status: 'error' });
+        if (!controller.signal.aborted) setState(previous => ({
+          status: 'error',
+          lastSuccess: previous.status === 'ready' ? previous.receivedAt :
+            previous.status === 'error' ? previous.lastSuccess : undefined,
+        }));
       } finally {
         inFlight = false;
       }
