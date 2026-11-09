@@ -19,15 +19,23 @@ impl<T> Cache<T> {
     }
 
     pub async fn get<E>(&self, load: impl Future<Output = Result<T, E>>) -> Result<Arc<T>, E> {
+        self.get_with_clock(load, Instant::now).await
+    }
+
+    async fn get_with_clock<E>(
+        &self,
+        load: impl Future<Output = Result<T, E>>,
+        now: impl Fn() -> Instant,
+    ) -> Result<Arc<T>, E> {
         let mut entry = self.entry.lock().await;
         if let Some((time, value)) = entry.as_ref()
-            && time.elapsed() < self.ttl
+            && now().duration_since(*time) < self.ttl
         {
             return Ok(Arc::clone(value));
         }
 
         let value = Arc::new(load.await?);
-        *entry = Some((Instant::now(), Arc::clone(&value)));
+        *entry = Some((now(), Arc::clone(&value)));
         Ok(value)
     }
 }
@@ -35,6 +43,23 @@ impl<T> Cache<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn expires_exactly_at_ttl() {
+        let ttl = Duration::from_secs(30);
+        let start = Instant::now();
+        let cache = Cache::new(ttl);
+
+        for (elapsed, incoming, expected) in [(0, 1, 1), (29, 2, 1), (30, 3, 3)] {
+            let result = cache
+                .get_with_clock(async { Ok::<_, ()>(incoming) }, || {
+                    start + Duration::from_secs(elapsed)
+                })
+                .await
+                .unwrap();
+            assert_eq!(*result, expected);
+        }
+    }
 
     #[tokio::test]
     async fn concurrent_readers_share_a_successful_load() {
