@@ -48,13 +48,14 @@ npm run build --prefix frontend
 Для Playwright запустите команды из каталога `frontend`.
 
 ```sh
-npx playwright install chromium
+npx playwright install chromium firefox webkit
 npm run test:e2e
 ```
 
-Playwright запускает Vite и подставляет ответы API. Тесты проходят в профилях настольного и мобильного Chromium.
+Playwright запускает Vite и подставляет ответы API. Основные сценарии проверяются в настольном и мобильном Chromium. Отрисовку графиков и предупреждений дополнительно проверяем в Firefox и WebKit.
 
 [План разработки](docs/ROADMAP.md)
+
 
 
 

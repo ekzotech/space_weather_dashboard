@@ -16,6 +16,12 @@ export default defineConfig({
       testMatch: 'dashboard.spec.ts',
       grep: /renders both charts and shows an upcoming storm/,
     },
+    {
+      name: 'webkit',
+      use: devices['Desktop Safari'],
+      testMatch: 'dashboard.spec.ts',
+      grep: /renders both charts and shows an upcoming storm/,
+    },
   ],
 });
 
