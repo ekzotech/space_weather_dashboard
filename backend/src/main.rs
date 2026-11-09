@@ -126,7 +126,6 @@ async fn aurora(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let key = env::var("NASA_API_KEY").unwrap_or_else(|_| "DEMO_KEY".into());
     let addr = env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:3000".into());
     let app = Router::new()
         .route(
@@ -138,7 +137,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/xray", get(xray))
         .route("/api/storms", get(storms))
         .route("/api/aurora", get(aurora))
-        .with_state(Arc::new(Feeds::new(key)?));
+        .with_state(Arc::new(Feeds::new()?));
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     println!("Space Weather API at http://{}", listener.local_addr()?);

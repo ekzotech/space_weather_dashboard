@@ -58,7 +58,7 @@ function Dashboard() {
         <span>Все времена в UTC</span>
         <div className="flex gap-4">
           <a href="https://www.swpc.noaa.gov/">NOAA SWPC</a>
-          <a href="https://api.nasa.gov/#donki">NASA DONKI</a>
+          <a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/">NASA DONKI</a>
         </div>
       </footer>
     </div>

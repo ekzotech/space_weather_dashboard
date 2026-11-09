@@ -16,7 +16,6 @@ const NOAA: &str = "https://services.swpc.noaa.gov";
 
 pub struct Feeds {
     client: Client,
-    nasa_key: String,
     kp: Cache<Vec<Sample>>,
     forecast: Cache<Vec<Sample>>,
     xray: Cache<Vec<Sample>>,
@@ -25,14 +24,13 @@ pub struct Feeds {
 }
 
 impl Feeds {
-    pub fn new(nasa_key: String) -> Result<Self, reqwest::Error> {
+    pub fn new() -> Result<Self, reqwest::Error> {
         let five_minutes = Duration::from_secs(300);
         Ok(Self {
             client: Client::builder()
                 .timeout(Duration::from_secs(12))
                 .user_agent("SpaceWeatherDashboard/0.1")
                 .build()?,
-            nasa_key,
             kp: Cache::new(five_minutes),
             forecast: Cache::new(five_minutes),
             xray: Cache::new(Duration::from_secs(60)),
@@ -101,11 +99,10 @@ impl Feeds {
                 let end = Utc::now().date_naive();
                 let start = end - Days::new(30);
                 self.client
-                    .get("https://api.nasa.gov/DONKI/GST")
+                    .get("https://ccmc.gsfc.nasa.gov/DONKI-API/get/GST")
                     .query(&[
                         ("startDate", start.to_string()),
                         ("endDate", end.to_string()),
-                        ("api_key", self.nasa_key.clone()),
                     ])
                     .send()
                     .await?
