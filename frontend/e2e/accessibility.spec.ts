@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/aurora?*', route => route.fulfill({
     json: { probability: 24, observation_time: first, forecast_time: second, stale: false },
   }));
-  await page.route('**/api/cloud?*', route => route.fulfill({ json: { cloud_cover: null, time: '2026-10-10T00:00' } }));
+  await page.route('**/api/cloud?*', route => route.fulfill({ json: { cloud_cover: null, time: '2026-10-10T00:00:00Z' } }));
 });
 
 test('semantic warning and muted text meet AA contrast', async ({ page }) => {
@@ -114,4 +114,5 @@ test('keeps the forecast warning readable in forced colors', async ({ page }) =>
   await expect(warning).toHaveCSS('border-top-width', '1px');
   await expect(warning).toHaveCSS('border-top-style', 'solid');
 });
+
 

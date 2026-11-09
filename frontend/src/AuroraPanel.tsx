@@ -196,7 +196,7 @@ export function AuroraPanel() {
             <p className="muted mt-1 text-sm">Время прогноза · {utc(result.data.forecast_time)}</p>
             <p className="muted mt-2 text-sm">
               {cloud === undefined ? 'Загружаем облачность…' : cloud?.cloud_cover == null ? 'Нет данных об облачности.' :
-                'Текущая облачность · ' + cloud.cloud_cover + '% · ' + utc(cloud.time + 'Z')}
+                'Текущая облачность · ' + cloud.cloud_cover + '% · ' + utc(cloud.time)}
             </p>
           </>
         )}
@@ -205,6 +205,7 @@ export function AuroraPanel() {
     </section>
   );
 }
+
 
 
 

@@ -131,6 +131,12 @@ async fn suppresses_expired_ovation_probability() {
 async fn openapi_examples_match_live_response_shapes() {
     let spec: Value = serde_json::from_str(include_str!("../../docs/openapi.json")).unwrap();
     let upstream = Router::new()
+        .route("/weather", get(|| async {
+            Json(json!({"current":{"cloud_cover":45,"time":"2026-01-01T00:00"}}))
+        }))
+        .route("/products/noaa-planetary-k-index-forecast.json", get(|| async {
+            Json(json!([{"time_tag":"2020-01-01T00:00:00","kp":7,"observed":"predicted"}]))
+        }))
         .route("/products/noaa-planetary-k-index.json", get(|| async {
             Json(json!([{"time_tag":"2026-01-01T00:00:00","Kp":6.33}]))
         }))
@@ -148,6 +154,8 @@ async fn openapi_examples_match_live_response_shapes() {
     for (path, query) in [
         ("/api/health", ""),
         ("/api/kp", ""),
+        ("/api/forecast", ""),
+        ("/api/cloud", "?lat=65&lon=0"),
         ("/api/xray", ""),
         ("/api/storms", ""),
         ("/api/aurora", "?lat=65&lon=0"),

@@ -1,9 +1,9 @@
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
-use chrono::{NaiveDate, Utc};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use reqwest::{Client, RequestBuilder};
-use serde::de::DeserializeOwned;
+use serde::{Deserialize, Deserializer, de::DeserializeOwned};
 
 use crate::{
     aurora::{AuroraGrid, Ovation},
@@ -93,7 +93,19 @@ const NOAA: &str = "https://services.swpc.noaa.gov";
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct CloudCover {
     pub cloud_cover: Option<u8>,
-    pub time: String,
+    #[serde(deserialize_with = "weather_time")]
+    pub time: DateTime<Utc>,
+}
+
+fn weather_time<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    NaiveDateTime::parse_from_str(&value, "%Y-%m-%dT%H:%M")
+        .or_else(|_| value.parse::<NaiveDateTime>())
+        .map(|time| time.and_utc())
+        .map_err(serde::de::Error::custom)
 }
 
 #[derive(serde::Deserialize)]
@@ -105,6 +117,7 @@ pub struct Feeds {
     client: Client,
     noaa_base: String,
     nasa_url: String,
+    weather_url: String,
     noaa_cooldown: Mutex<Option<Instant>>,
     nasa_cooldown: Mutex<Option<Instant>>,
     weather_cooldown: Mutex<Option<Instant>>,
@@ -128,6 +141,7 @@ impl Feeds {
                 .build()?,
             noaa_base: NOAA.into(),
             nasa_url: "https://ccmc.gsfc.nasa.gov/DONKI-API/get/GST".into(),
+            weather_url: "https://api.open-meteo.com/v1/forecast".into(),
             noaa_cooldown: Mutex::new(None),
             nasa_cooldown: Mutex::new(None),
             weather_cooldown: Mutex::new(None),
@@ -158,6 +172,7 @@ impl Feeds {
     pub fn test_sources(mut self, base: &str) -> Self {
         self.noaa_base = base.into();
         self.nasa_url = format!("{base}/gst");
+        self.weather_url = format!("{base}/weather");
         self
     }
 
@@ -216,19 +231,20 @@ impl Feeds {
 
     pub async fn cloud_cover(&self, lat: f64, lon: f64) -> Result<CloudCover, FeedError> {
         let data: CloudResponse = fetch_json(
-            self.client
-                .get("https://api.open-meteo.com/v1/forecast")
-                .query(&[
-                    ("latitude", lat.to_string()),
-                    ("longitude", lon.to_string()),
-                    ("current", "cloud_cover".into()),
-                    ("timezone", "UTC".into()),
-                ]),
+            self.client.get(&self.weather_url).query(&[
+                ("latitude", lat.to_string()),
+                ("longitude", lon.to_string()),
+                ("current", "cloud_cover".into()),
+                ("timezone", "UTC".into()),
+            ]),
             &self.weather_cooldown,
             &self.weather_metrics,
         )
         .await?;
-        Ok(data.current)
+        Ok(CloudCover {
+            cloud_cover: data.current.cloud_cover.filter(|cover| *cover <= 100),
+            time: data.current.time,
+        })
     }
 
     async fn fetch_storms(

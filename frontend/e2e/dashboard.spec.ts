@@ -6,7 +6,7 @@ const second = '2026-10-10T03:00:00Z';
 const peak = { id: 'example', start: second, peak_kp: 6.33, level: 2, linked_events: [] };
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/cloud?*', route => route.fulfill({ json: { cloud_cover: 42, time: '2026-10-10T00:00' } }));
+  await page.route('**/api/cloud?*', route => route.fulfill({ json: { cloud_cover: 42, time: '2026-10-10T00:00:00Z' } }));
   await page.route('**/api/kp', route => route.fulfill({
     json: [{ time: first, value: 3 }, { time: second, value: 6.33 }],
   }));
@@ -173,4 +173,5 @@ test('restores archive dates and ordering from a shared link', async ({ page }) 
   await page.reload();
   await expect(archive.locator('time').first()).toHaveAttribute('datetime', '2024-01-06T03:00:00Z');
 });
+
 

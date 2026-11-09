@@ -141,12 +141,7 @@
                     "$ref": "#/components/schemas/Sample"
                   }
                 },
-                "example": [
-                  {
-                    "time": "2026-01-01T00:00:00Z",
-                    "value": 6.33
-                  }
-                ]
+                "example": []
               }
             }
           },
@@ -515,7 +510,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Cloud cover and UTC timestamp without offset",
+            "description": "Current cloud cover and normalized UTC timestamp",
             "content": {
               "application/json": {
                 "schema": {
@@ -534,13 +529,14 @@
                       "maximum": 100
                     },
                     "time": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "date-time"
                     }
                   }
                 },
                 "example": {
                   "cloud_cover": 45,
-                  "time": "2026-01-01T00:00"
+                  "time": "2026-01-01T00:00:00Z"
                 }
               }
             }
@@ -581,6 +577,23 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/metrics": {
+      "get": {
+        "summary": "Prometheus metrics for upstream sources",
+        "responses": {
+          "200": {
+            "description": "Prometheus text exposition",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
