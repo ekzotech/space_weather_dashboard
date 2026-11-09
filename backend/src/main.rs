@@ -10,8 +10,10 @@ use std::{env, path::Path, sync::Arc};
 
 use axum::{
     Json, Router,
-    extract::{Query, State, rejection::QueryRejection},
-    http::{HeaderMap, HeaderValue, StatusCode},
+    extract::{Query, Request, State, rejection::QueryRejection},
+    http::{HeaderMap, HeaderValue, StatusCode, header},
+    middleware::{self, Next},
+    response::Response,
     routing::get,
 };
 use chrono::{DateTime, Days, Duration, NaiveDate, Utc};
@@ -224,6 +226,31 @@ fn router(feeds: Feeds) -> Router {
 
 fn with_static(app: Router, directory: impl AsRef<Path>) -> Router {
     app.fallback_service(ServeDir::new(directory))
+        .layer(middleware::from_fn(static_headers))
+}
+
+async fn static_headers(request: Request, next: Next) -> Response {
+    let path = request.uri().path();
+    let is_api = path == "/api" || path.starts_with("/api/");
+    let is_asset = path.starts_with("/assets/");
+    let mut response = next.run(request).await;
+    if !is_api && (response.status().is_success() || response.status() == StatusCode::NOT_MODIFIED)
+    {
+        let headers = response.headers_mut();
+        headers.insert(
+            header::X_CONTENT_TYPE_OPTIONS,
+            HeaderValue::from_static("nosniff"),
+        );
+        headers.insert(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static(if is_asset {
+                "public, max-age=31536000, immutable"
+            } else {
+                "no-cache"
+            }),
+        );
+    }
+    response
 }
 
 #[tokio::main]

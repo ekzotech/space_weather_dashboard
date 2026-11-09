@@ -200,3 +200,40 @@ async fn validates_archive_bounds_and_filters_inclusive_utc_dates() {
     }
     provider.abort();
 }
+
+#[tokio::test]
+async fn serves_html_and_versioned_assets_with_safe_cache_headers() {
+    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/static");
+    let (base, server) = start(with_static(router(Feeds::new().unwrap()), directory)).await;
+    let html = reqwest::get(format!("{base}/")).await.unwrap();
+    assert_eq!(html.status(), StatusCode::OK);
+    assert_eq!(html.headers()[header::CACHE_CONTROL], "no-cache");
+    assert_eq!(html.headers()[header::X_CONTENT_TYPE_OPTIONS], "nosniff");
+    assert!(
+        html.headers()[header::CONTENT_TYPE]
+            .to_str()
+            .unwrap()
+            .starts_with("text/html")
+    );
+    assert!(html.text().await.unwrap().contains("Dashboard fixture"));
+    let css = reqwest::get(format!("{base}/assets/app-test.css"))
+        .await
+        .unwrap();
+    assert_eq!(css.status(), StatusCode::OK);
+    assert_eq!(
+        css.headers()[header::CACHE_CONTROL],
+        "public, max-age=31536000, immutable"
+    );
+    assert!(
+        css.headers()[header::CONTENT_TYPE]
+            .to_str()
+            .unwrap()
+            .starts_with("text/css")
+    );
+    let missing = reqwest::get(format!("{base}/assets/missing.css"))
+        .await
+        .unwrap();
+    assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+    assert!(missing.headers().get(header::CACHE_CONTROL).is_none());
+    server.abort();
+}
