@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useFeed, type Sample } from './api';
 import { FeedContent } from './FeedContent';
 import { kp, utc } from './format';
@@ -10,7 +10,17 @@ function forecastEnd(time: string) {
 }
 
 export function Overview({ observations }: { observations: ReturnType<typeof useFeed<Sample[]>> }) {
-  const [threshold, setThreshold] = useState(5);
+  const [threshold, setThreshold] = useState(() => {
+    try {
+      const saved = Number(window.localStorage.getItem('forecast-threshold'));
+      return Number.isInteger(saved) && saved >= 5 && saved <= 9 ? saved : 5;
+    } catch {
+      return 5;
+    }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('forecast-threshold', String(threshold)); } catch { /* storage unavailable */ }
+  }, [threshold]);
   const forecast = useFeed<Sample[]>('forecast', 300_000);
   return (
     <div className="grid gap-3 sm:grid-cols-2">
