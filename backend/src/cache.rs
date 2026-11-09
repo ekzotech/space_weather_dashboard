@@ -5,8 +5,17 @@ use std::{
 };
 use tokio::sync::Mutex;
 
+const RETRY_DELAY: Duration = Duration::from_secs(30);
+const STALE_WINDOW: Duration = Duration::from_secs(30 * 60);
+
+struct Entry<T> {
+    received: Instant,
+    value: Arc<T>,
+    failed: Option<Instant>,
+}
+
 pub struct Cache<T> {
-    entry: Mutex<Option<(Instant, Arc<T>)>>,
+    entry: Mutex<Option<Entry<T>>>,
     ttl: Duration,
 }
 
@@ -28,15 +37,36 @@ impl<T> Cache<T> {
         now: impl Fn() -> Instant,
     ) -> Result<Arc<T>, E> {
         let mut entry = self.entry.lock().await;
-        if let Some((time, value)) = entry.as_ref()
-            && now().duration_since(*time) < self.ttl
-        {
-            return Ok(Arc::clone(value));
+        if let Some(entry) = entry.as_ref() {
+            let age = now().duration_since(entry.received);
+            let backing_off = entry
+                .failed
+                .is_some_and(|failed| now().duration_since(failed) < RETRY_DELAY);
+            if age < self.ttl || (age < self.ttl + STALE_WINDOW && backing_off) {
+                return Ok(Arc::clone(&entry.value));
+            }
         }
 
-        let value = Arc::new(load.await?);
-        *entry = Some((now(), Arc::clone(&value)));
-        Ok(value)
+        match load.await {
+            Ok(value) => {
+                let value = Arc::new(value);
+                *entry = Some(Entry {
+                    received: now(),
+                    value: Arc::clone(&value),
+                    failed: None,
+                });
+                Ok(value)
+            }
+            Err(error) => {
+                if let Some(entry) = entry.as_mut()
+                    && now().duration_since(entry.received) < self.ttl + STALE_WINDOW
+                {
+                    entry.failed = Some(now());
+                    return Ok(Arc::clone(&entry.value));
+                }
+                Err(error)
+            }
+        }
     }
 }
 
@@ -59,6 +89,28 @@ mod tests {
                 .unwrap();
             assert_eq!(*result, expected);
         }
+    }
+
+    #[tokio::test]
+    async fn serves_last_success_only_within_stale_window() {
+        let ttl = Duration::from_secs(10);
+        let start = Instant::now();
+        let cache = Cache::new(ttl);
+        cache
+            .get_with_clock(async { Ok::<_, ()>(42) }, || start)
+            .await
+            .unwrap();
+        let stale = cache
+            .get_with_clock(async { Err(()) }, || start + ttl)
+            .await
+            .unwrap();
+        assert_eq!(*stale, 42);
+        assert!(
+            cache
+                .get_with_clock(async { Err(()) }, || start + ttl + STALE_WINDOW)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
