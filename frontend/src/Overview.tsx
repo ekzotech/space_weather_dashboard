@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useFeed, type Sample } from './api';
 import { FeedContent } from './FeedContent';
 import { kp, utc } from './format';
@@ -9,6 +10,7 @@ function forecastEnd(time: string) {
 }
 
 export function Overview({ observations }: { observations: ReturnType<typeof useFeed<Sample[]>> }) {
+  const [threshold, setThreshold] = useState(5);
   const forecast = useFeed<Sample[]>('forecast', 300_000);
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -31,9 +33,15 @@ export function Overview({ observations }: { observations: ReturnType<typeof use
       </section>
       <section className="panel overview" aria-label="Предупреждения о бурях">
         <p className="eyebrow">Предупреждения · NOAA</p>
+        <label className="mt-3 grid max-w-48 gap-1 text-sm" htmlFor="forecast-threshold">
+          Порог предупреждений
+          <select id="forecast-threshold" value={threshold} onChange={event => setThreshold(Number(event.target.value))}>
+            {[5, 6, 7, 8, 9].map(value => <option key={value} value={value}>Kp {value}</option>)}
+          </select>
+        </label>
         <FeedContent feed={forecast}>
           {points => {
-            const windows = stormWindows(points, 5);
+            const windows = stormWindows(points, threshold);
             const next = windows[0];
             if (!points.length) return <p className="muted mt-2">Актуального прогноза пока нет.</p>;
             const through = <p className="muted mt-2 text-sm">Горизонт · до {forecastEnd(points.at(-1)!.time)}</p>;
@@ -49,8 +57,8 @@ export function Overview({ observations }: { observations: ReturnType<typeof use
               </>
             ) : (
               <>
-                <p className="badge calm mt-3">Kp ниже 5</p>
-                <p className="muted mt-3 text-sm">На доступном горизонте прогноза бурь не ожидается.</p>
+                <p className="badge calm mt-3">Kp ниже {threshold}</p>
+                <p className="muted mt-3 text-sm">На доступном горизонте Kp не достигает выбранного порога.</p>
                 {through}
               </>
             );
