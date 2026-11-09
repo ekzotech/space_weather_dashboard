@@ -33,14 +33,18 @@ export function Overview({ observations }: { observations: ReturnType<typeof use
         <p className="eyebrow">Предупреждения · NOAA</p>
         <FeedContent feed={forecast}>
           {points => {
-            const next = points.find(point => point.value >= 5);
+            const windows = points.filter(point => point.value >= 5);
+            const next = windows[0];
             if (!points.length) return <p className="muted mt-2">Актуального прогноза пока нет.</p>;
             const through = <p className="muted mt-2 text-sm">Горизонт · до {forecastEnd(points.at(-1)!.time)}</p>;
             return next ? (
               <>
                 <p className="badge warning mt-3">Ожидается G{Math.floor(next.value) - 4}</p>
-                <p className="mt-3">Kp {kp(next.value)} · {utc(next.time)}</p>
-                <p className="muted mt-1 text-sm">Начало прогнозного трёхчасового окна.</p>
+                <ul className="mt-2 divide-y divide-[#eaeaea]" aria-label="Окна бурь">
+                  {windows.map(point => <li key={point.time} className="py-2 text-sm">
+                    {utc(point.time)} — {forecastEnd(point.time)} · Kp {kp(point.value)}
+                  </li>)}
+                </ul>
                 {through}
               </>
             ) : (
