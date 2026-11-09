@@ -167,10 +167,8 @@ async fn aurora(
     ))
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:3000".into());
-    let app = Router::new()
+fn router(feeds: Feeds) -> Router {
+    Router::new()
         .route(
             "/api/health",
             get(|| async { Json(json!({ "status": "ok" })) }),
@@ -180,7 +178,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/xray", get(xray))
         .route("/api/storms", get(storms))
         .route("/api/aurora", get(aurora))
-        .with_state(Arc::new(Feeds::new()?));
+        .with_state(Arc::new(feeds))
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:3000".into());
+    let app = router(Feeds::new()?);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     println!("Space Weather API at http://{}", listener.local_addr()?);
