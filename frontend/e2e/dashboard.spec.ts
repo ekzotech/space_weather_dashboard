@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 
 const first = '2026-10-10T00:00:00Z';
@@ -83,3 +84,23 @@ test('shows an expired OVATION forecast for custom coordinates', async ({ page }
   await page.getByRole('button', { name: 'Проверить мой город' }).click();
   await expect(page.getByText('Последний прогноз устарел.')).toBeVisible();
 });
+test('exports only the visible Kp period and the separate GOES series', async ({ page }) => {
+  const last = '2026-10-13T00:00:00Z';
+  await page.route('**/api/kp', route => route.fulfill({
+    json: [{ time: first, value: 3 }, { time: second, value: 6.33 }, { time: last, value: 2 }],
+  }));
+  await page.goto('/');
+  const chart = page.getByRole('img', { name: 'График планетарного Kp' });
+  await expect(chart).toHaveAttribute('data-points', '3');
+  await page.getByRole('combobox', { name: 'Период Kp' }).selectOption('1');
+  await expect(chart).toHaveAttribute('data-points', '1');
+
+  const [kp] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Скачать Kp CSV' }).click()]);
+  expect(kp.suggestedFilename()).toBe('kp.csv');
+  expect(await readFile(await kp.path(), 'utf8')).toBe('time_utc,kp\r\n' + last + ',2\r\n');
+
+  const [goes] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Скачать GOES CSV' }).click()]);
+  expect(goes.suggestedFilename()).toBe('goes-xray.csv');
+  expect(await readFile(await goes.path(), 'utf8')).toBe('time_utc,watts_per_square_metre\r\n' + first + ',1e-7\r\n' + second + ',0.000002\r\n');
+});
+
