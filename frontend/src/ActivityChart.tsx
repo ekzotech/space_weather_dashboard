@@ -20,6 +20,19 @@ const stormThreshold: Plugin<'line'> = {
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, LogarithmicScale, Tooltip);
 
+function chartPoints(points: Sample[], expectedStep: number) {
+  const data: { x: number; y: number | null }[] = [];
+  for (const point of points) {
+    const x = Date.parse(point.time);
+    const previous = data.at(-1);
+    if (previous && x - previous.x > expectedStep * 1.5) {
+      data.push({ x: previous.x + expectedStep, y: null });
+    }
+    data.push({ x, y: point.value });
+  }
+  return data;
+}
+
 export function ActivityChart({ points, title, solar = false }: {
   points: Sample[];
   title: string;
@@ -34,7 +47,7 @@ export function ActivityChart({ points, title, solar = false }: {
       plugins: solar ? [] : [stormThreshold],
       data: {
         datasets: [{
-          data: points.map(point => ({ x: Date.parse(point.time), y: point.value })),
+          data: chartPoints(points, solar ? 60_000 : 10_800_000),
           borderColor: solar ? '#95553c' : '#34604f',
           borderWidth: 2,
           pointRadius: points.length === 1 ? 3 : 0,
@@ -73,7 +86,7 @@ export function ActivityChart({ points, title, solar = false }: {
         },
       },
     });
-    canvas.current.dataset.points = String(chart.data.datasets[0].data.length);
+    canvas.current.dataset.points = String(points.length);
     return () => chart.destroy();
   }, [points, solar]);
 
