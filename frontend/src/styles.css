@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+:root {
+  font-family: "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+  color: #242823;
+  background: #f7f6f1;
+  line-height: 1.55;
+  --ink: #242823;
+  --muted: #5b6258;
+  --line: #eaeaea;
+}
+
+.shell { min-height: 100vh; }
+.masthead { border-block-end: 1px solid #dddcd4; }
+footer.masthead { border-block-start: 1px solid #dddcd4; border-block-end: 0; }
+footer a { text-decoration: underline; text-underline-offset: 3px; }
+.hero { padding-block: clamp(2.8rem, 9vw, 6rem) clamp(2rem, 6vw, 3.8rem); }
+h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
+h1 { font-size: clamp(2.9rem, 8.2vw, 6.5rem); letter-spacing: -.065em; line-height: .98; }
+h2 { font-size: clamp(1.55rem, 3vw, 2.15rem); letter-spacing: -.04em; line-height: 1.15; margin-top: .45rem; }
+.eyebrow, .mono, .metric, .badge { font-family: "Geist Mono", Consolas, monospace; }
+.eyebrow { color: var(--muted); font-size: .72rem; letter-spacing: .075em; text-transform: uppercase; }
+.muted { color: var(--muted); }
+.panel { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: clamp(1.15rem, 3vw, 2rem); }
+.metric { font-size: clamp(2rem, 6vw, 3rem); letter-spacing: -.06em; line-height: 1.1; }
+.badge { display: inline-block; padding: .25rem .65rem; border-radius: 999px; font-size: .78rem; }
+.warning { background: #fbf0d8; color: #77510e; }
+.calm, .result { background: #edf3ec; color: #2f5743; }
+.result { border-radius: 6px; padding: 1rem; min-height: 4.15rem; }
+.aurora { scroll-margin-top: 1rem; }
+select, input, button { min-height: 44px; border-radius: 5px; }
+select, input { background: #fff; border: 1px solid #aeb5a9; padding-inline: .65rem; min-width: 0; width: 100%; }
+button { cursor: pointer; padding: .55rem 1rem; }
+.primary { background: #202720; color: #fff; }
+.primary:hover { background: #384339; }
+button:disabled, fieldset:disabled button { opacity: .65; cursor: wait; }
+.secondary { border: 1px solid #aeb5a9; }
+:focus-visible { outline: 2px solid #34604f; outline-offset: 3px; }
+th, td { padding: .3rem .25rem; border-bottom: 1px solid var(--line); }
+
