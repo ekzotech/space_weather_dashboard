@@ -136,6 +136,7 @@ struct Coordinates {
 #[derive(Serialize)]
 struct AuroraEstimate {
     probability: Option<i16>,
+    grid_distance_km: Option<f64>,
     observation_time: DateTime<Utc>,
     forecast_time: DateTime<Utc>,
     stale: bool,
@@ -154,14 +155,15 @@ async fn aurora(
         .await
         .map_err(|e| upstream("NOAA OVATION", e))?;
     let stale = Utc::now() - grid.value.observation_time > Duration::hours(1);
+    let probability = (!stale)
+        .then(|| grid.value.estimate(point.lat, point.lon))
+        .flatten();
     Ok((
         feed_headers(&grid),
         Json(AuroraEstimate {
-            probability: if stale {
-                None
-            } else {
-                grid.value.estimate(point.lat, point.lon)
-            },
+            probability,
+            grid_distance_km: probability
+                .map(|_| aurora::AuroraGrid::distance_to_cell_km(point.lat, point.lon)),
             observation_time: grid.value.observation_time,
             forecast_time: grid.value.forecast_time,
             stale,

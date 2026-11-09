@@ -4,6 +4,7 @@ export type Sample = { time: string; value: number };
 export type Storm = { id: string; start: string; peak_kp: number; level: number; linked_events: string[] };
 export type Aurora = {
   probability: number | null;
+  grid_distance_km: number | null;
   observation_time: string;
   forecast_time: string;
   stale: boolean;
@@ -72,5 +73,6 @@ export function useFeed<T>(path: string, interval?: number) {
 
   return { ...state, retry };
 }
+
 
 

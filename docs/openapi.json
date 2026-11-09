@@ -417,7 +417,8 @@
                   "probability": null,
                   "observation_time": "2020-01-01T00:00:00Z",
                   "forecast_time": "2020-01-01T00:30:00Z",
-                  "stale": true
+                  "stale": true,
+                  "grid_distance_km": null
                 }
               }
             }
@@ -525,7 +526,8 @@
           "probability",
           "observation_time",
           "forecast_time",
-          "stale"
+          "stale",
+          "grid_distance_km"
         ],
         "properties": {
           "probability": {
@@ -546,6 +548,13 @@
           },
           "stale": {
             "type": "boolean"
+          },
+          "grid_distance_km": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
           }
         }
       },

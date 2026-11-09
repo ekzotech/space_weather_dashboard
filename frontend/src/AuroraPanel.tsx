@@ -156,6 +156,9 @@ export function AuroraPanel() {
               : result.data.probability === null
                 ? <p>Для этой точки нет данных.</p>
                 : <p className="metric mt-1">{result.data.probability}%</p>}
+            {result.data.grid_distance_km != null && <p className="muted mt-2 text-sm">
+              До центра ячейки OVATION · {Math.round(result.data.grid_distance_km)} км
+            </p>}
             <p className="muted mt-2 text-sm">Наблюдение модели · {utc(result.data.observation_time)}</p>
             <p className="muted mt-1 text-sm">Время прогноза · {utc(result.data.forecast_time)}</p>
           </>
@@ -165,5 +168,6 @@ export function AuroraPanel() {
     </section>
   );
 }
+
 
 

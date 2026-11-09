@@ -38,6 +38,17 @@ impl From<Ovation> for AuroraGrid {
 }
 
 impl AuroraGrid {
+    pub fn distance_to_cell_km(lat: f64, lon: f64) -> f64 {
+        let center_lat = lat.round();
+        let lat_delta = (center_lat - lat).to_radians();
+        let lon_delta = (lon.round() - lon).to_radians();
+        let haversine = (lat_delta / 2.0).sin().powi(2)
+            + lat.to_radians().cos()
+                * center_lat.to_radians().cos()
+                * (lon_delta / 2.0).sin().powi(2);
+        6371.0 * 2.0 * haversine.clamp(0.0, 1.0).sqrt().asin()
+    }
+
     pub fn estimate(&self, lat: f64, lon: f64) -> Option<i16> {
         let grid_lon = (lon.round() as i16).rem_euclid(360);
         self.cells.get(&(grid_lon, lat.round() as i16)).copied()
@@ -60,6 +71,8 @@ mod tests {
         assert_eq!(grid.estimate(65.1, -0.1), Some(0));
         assert_eq!(grid.estimate(65.1, -180.0), Some(80));
         assert_eq!(grid.estimate(64.0, 0.0), None);
+        assert_eq!(AuroraGrid::distance_to_cell_km(65.0, -180.0), 0.0);
+        assert!(AuroraGrid::distance_to_cell_km(0.0, 179.75) < 28.0);
         assert!(!valid_coordinates(f64::NAN, 0.0));
     }
 }
