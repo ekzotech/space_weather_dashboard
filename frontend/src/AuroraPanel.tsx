@@ -44,13 +44,13 @@ export function AuroraPanel() {
       <p className="muted mt-2">Проверьте оценку модели NOAA OVATION для вашей точки.</p>
       <form className="mt-6 grid gap-3" onSubmit={submit}>
         <fieldset className="grid gap-3" disabled={result?.status === 'loading'}>
-          <label className="grid gap-1 text-sm">
-            Город
-            <select value={city} onChange={event => { setCity(event.target.value); setResult(undefined); }}>
+          <div className="grid gap-1 text-sm">
+            <label htmlFor="aurora-city">Город</label>
+            <select id="aurora-city" value={city} onChange={event => { setCity(event.target.value); setResult(undefined); }}>
               {cities.map((item, index) => <option key={item.name} value={index}>{item.name}</option>)}
               <option value="custom">Свои координаты</option>
             </select>
-          </label>
+          </div>
           {custom && (
             <div className="grid gap-3 min-[360px]:grid-cols-2">
               <label className="grid gap-1 text-sm">Широта<input name="lat" type="number" min="-90" max="90" step="any" required /></label>
