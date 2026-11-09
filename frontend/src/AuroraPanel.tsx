@@ -9,7 +9,15 @@ const cities = [
   { name: 'Санкт-Петербург', lat: 59.94, lon: 30.31 },
   { name: 'Москва', lat: 55.75, lon: 37.62 },
   { name: 'Тромсё', lat: 69.65, lon: 18.96 },
+  { name: 'Киров', region: 'Кировская область', lat: 58.60, lon: 49.67 },
+  { name: 'Киров', region: 'Калужская область', lat: 54.08, lon: 34.30 },
+  { name: 'Берёзовский', region: 'Свердловская область', lat: 56.91, lon: 60.80 },
+  { name: 'Берёзовский', region: 'Кемеровская область', lat: 55.67, lon: 86.27 },
 ];
+
+function placeLabel(place: { name: string; region?: string }) {
+  return place.region ? place.name + ' · ' + place.region : place.name;
+}
 
 type Result =
   | { status: 'loading' }
@@ -37,7 +45,7 @@ export function AuroraPanel() {
     try {
       const query = new URLSearchParams({ lat: String(point.lat), lon: String(point.lon) });
       const data = await get<Aurora>('aurora?' + query);
-      setResult({ status: 'ready', place: point.name, data });
+      setResult({ status: 'ready', place: placeLabel(point), data });
     } catch {
       setResult({ status: 'error' });
     }
@@ -62,7 +70,7 @@ export function AuroraPanel() {
             <label htmlFor="aurora-city">Город</label>
             <select id="aurora-city" value={selected} onChange={event => { setCity(event.target.value); setResult(undefined); }}>
               <option value="" disabled>Выберите город</option>
-              {matching.map(item => <option key={item.index} value={item.index}>{item.name}</option>)}
+              {matching.map(item => <option key={item.index} value={item.index}>{placeLabel(item)}</option>)}
               <option value="custom">Свои координаты</option>
             </select>
           </div>
