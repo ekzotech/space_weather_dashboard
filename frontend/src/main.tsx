@@ -4,6 +4,7 @@ import { ActivityChart } from './ActivityChart';
 import { useFeed, type Sample } from './api';
 import { ChartTime, type Zone } from './ChartTime';
 import { AuroraPanel } from './AuroraPanel';
+import { downloadSeries } from './csv';
 import { FeedContent } from './FeedContent';
 import { KpPanel } from './KpPanel';
 import { Overview } from './Overview';
@@ -49,7 +50,12 @@ function Dashboard() {
             <h2 id="solar-title">Солнечная активность</h2>
             <p className="muted mb-4 mt-1 text-sm">Поток рентгеновского излучения · 24 часа · Вт/м²</p>
             <FeedContent feed={xray}>
-              {points => <ActivityChart points={points} title="График солнечного рентгеновского потока" solar />}
+              {points => (
+                <>
+                  <ActivityChart points={points} title="График солнечного рентгеновского потока" solar />
+                  {!!points.length && <button className="secondary mt-3" onClick={() => downloadSeries(points, 'goes-xray.csv', 'watts_per_square_metre')}>Скачать GOES CSV</button>}
+                </>
+              )}
             </FeedContent>
           </section>
         </div>
