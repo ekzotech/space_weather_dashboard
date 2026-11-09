@@ -162,3 +162,41 @@ async fn openapi_examples_match_live_response_shapes() {
     }
     provider.abort();
 }
+
+#[tokio::test]
+async fn validates_archive_bounds_and_filters_inclusive_utc_dates() {
+    let upstream = Router::new().route(
+        "/gst",
+        get(|| async {
+            Json(json!([
+                {"gstID":"outside","startTime":"2023-12-31T23:59Z","allKpIndex":[{"kpIndex":7}]},
+                {"gstID":"inside","startTime":"2024-01-01T23:59Z","allKpIndex":[{"kpIndex":6}]},
+                {"gstID":"tomorrow","startTime":"2024-01-02T00:00Z","allKpIndex":[{"kpIndex":8}]}
+            ]))
+        }),
+    );
+    let (base, provider) = start(upstream).await;
+    let app = router(Feeds::new().unwrap().test_sources(&base));
+    let (status, body) = request(app.clone(), "/api/storms?start=2024-01-01&end=2024-01-01").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body.as_array().unwrap().len(), 1);
+    assert_eq!(body[0]["id"], "inside");
+    assert_eq!(
+        request(app.clone(), "/api/storms?start=2024-01-03&end=2024-01-04").await,
+        (StatusCode::OK, json!([]))
+    );
+    for query in [
+        "start=2024-01-01",
+        "start=2024-01-01&end=2024-01-31",
+        "start=2024-01-02&end=2024-01-01",
+    ] {
+        assert_eq!(
+            request(app.clone(), &format!("/api/storms?{query}")).await,
+            (
+                StatusCode::BAD_REQUEST,
+                json!({"error":"invalid_date_range"})
+            )
+        );
+    }
+    provider.abort();
+}
