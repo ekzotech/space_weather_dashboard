@@ -33,6 +33,7 @@ export function AuroraPanel() {
   const [search, setSearch] = useState('');
   const [coordinates, setCoordinates] = useState({ lat: '', lon: '' });
   const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState(false);
   const matching = cities.map((item, index) => ({ ...item, index })).filter(
     item => normalizeName(placeLabel(item)).includes(normalizeName(search)),
   );
@@ -42,7 +43,17 @@ export function AuroraPanel() {
   const custom = selected === 'custom';
 
   function locate() {
-    if (!navigator.geolocation) return;
+    const unavailable = () => {
+      setCity('custom');
+      setResult(undefined);
+      setLocationError(true);
+      setLocating(false);
+    };
+    setLocationError(false);
+    if (!navigator.geolocation) {
+      unavailable();
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(position => {
       setCoordinates({
@@ -52,7 +63,7 @@ export function AuroraPanel() {
       setCity('custom');
       setResult(undefined);
       setLocating(false);
-    }, () => setLocating(false), { timeout: 10_000, maximumAge: 60_000 });
+    }, unavailable, { timeout: 10_000, maximumAge: 60_000 });
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -98,6 +109,7 @@ export function AuroraPanel() {
           <button type="button" className="secondary" onClick={locate}>
             {locating ? 'Определяем координаты…' : 'Использовать моё местоположение'}
           </button>
+          {locationError && <p role="status" className="muted text-sm">Не удалось определить местоположение. Введите координаты вручную.</p>}
           {custom && (
             <div className="grid gap-3 min-[360px]:grid-cols-2">
               <label className="grid gap-1 text-sm">Широта<input name="lat" value={coordinates.lat} onChange={event => setCoordinates({ ...coordinates, lat: event.target.value })} type="number" min="-90" max="90" step="any" required /></label>
