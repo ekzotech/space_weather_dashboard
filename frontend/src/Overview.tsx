@@ -22,6 +22,8 @@ export function Overview({ observations }: { observations: ReturnType<typeof use
     try { window.localStorage.setItem('forecast-threshold', String(threshold)); } catch { /* storage unavailable */ }
   }, [threshold]);
   const forecast = useFeed<Sample[]>('forecast', 300_000);
+  const firstWindow = forecast.status === 'ready' ? stormWindows(forecast.data, threshold)[0] : undefined;
+  const warning = firstWindow ? 'Ожидается G' + (Math.floor(firstWindow.peak) - 4) : '';
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <section className="panel overview" aria-label="Текущий Kp">
@@ -53,6 +55,7 @@ export function Overview({ observations }: { observations: ReturnType<typeof use
           <p className="muted mt-2 text-sm">Последний успешный прогноз · {utc(forecast.lastSuccess)}</p>}
         {forecast.status === 'ready' && forecast.stale &&
           <p className="muted mt-2 text-sm">Сохранённый прогноз от {utc(forecast.receivedAt)}</p>}
+        <div aria-live="polite" aria-atomic="true">{warning && <p className="badge warning mt-3">{warning}</p>}</div>
         <FeedContent feed={forecast}>
           {points => {
             const windows = stormWindows(points, threshold);
@@ -61,7 +64,6 @@ export function Overview({ observations }: { observations: ReturnType<typeof use
             const through = <p className="muted mt-2 text-sm">Горизонт · до {forecastEnd(points.at(-1)!.time)}</p>;
             return next ? (
               <>
-                <p className="badge warning mt-3">Ожидается G{Math.floor(next.peak) - 4}</p>
                 <ul className="mt-2 divide-y divide-[#eaeaea]" aria-label="Окна бурь">
                   {windows.map(window => <li key={window.start} className="py-2 text-sm">
                     {utc(window.start)} — {utc(window.end)} · пик Kp {kp(window.peak)} · G{Math.floor(window.peak) - 4}
