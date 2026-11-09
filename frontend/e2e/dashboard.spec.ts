@@ -148,3 +148,29 @@ test('fills the manual fields from browser geolocation', async ({ context, page 
   await expect(page.getByLabel('Долгота')).toHaveValue('33.08000');
 });
 
+
+test('restores archive dates and ordering from a shared link', async ({ page }) => {
+  await page.route('**/api/storms?*', route => {
+    const query = new URL(route.request().url()).searchParams;
+    expect(query.get('start')).toBe('2024-01-01');
+    expect(query.get('end')).toBe('2024-01-12');
+    expect(query.get('min_kp')).toBe('6');
+    const entries = Array.from({ length: 6 }, (_, i) => ({
+      ...peak, id: 'storm-' + i, start: '2024-01-0' + (i + 1) + 'T03:00:00Z',
+    }));
+    return route.fulfill({ json: entries });
+  });
+  const url = '/?storm_kp=6&storm_sort=date&storm_start=2024-01-01&storm_end=2024-01-12';
+  await page.goto(url);
+  await expect(page.getByLabel('Начало периода')).toHaveValue('2024-01-01');
+  await expect(page.getByLabel('Конец периода')).toHaveValue('2024-01-12');
+  await expect(page.getByRole('combobox', { name: 'Сортировка архива' })).toHaveValue('date');
+  const archive = page.getByRole('region', { name: 'Архив бурь' });
+  await expect(archive.locator('time').first()).toHaveAttribute('datetime', '2024-01-06T03:00:00Z');
+  await archive.getByRole('button', { name: 'Вперёд' }).click();
+  await expect(archive.locator('time')).toHaveCount(1);
+  await expect(archive.locator('time').first()).toHaveAttribute('datetime', '2024-01-01T03:00:00Z');
+  await page.reload();
+  await expect(archive.locator('time').first()).toHaveAttribute('datetime', '2024-01-06T03:00:00Z');
+});
+
