@@ -39,6 +39,7 @@ export function ActivityChart({ points, title, solar = false }: {
   solar?: boolean;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const highlight = useRef<(time?: string) => void>(() => {});
 
   useEffect(() => {
     if (!canvas.current || !points.length) return;
@@ -87,7 +88,15 @@ export function ActivityChart({ points, title, solar = false }: {
       },
     });
     canvas.current.dataset.points = String(points.length);
-    return () => chart.destroy();
+    highlight.current = time => {
+      const index = chart.data.datasets[0].data.findIndex(point => point.x === Date.parse(time ?? ''));
+      chart.setActiveElements(index < 0 ? [] : [{ datasetIndex: 0, index }]);
+      chart.update('none');
+    };
+    return () => {
+      highlight.current = () => {};
+      chart.destroy();
+    };
   }, [points, solar]);
 
   if (!points.length) return <p className="muted">За этот период данных нет.</p>;
@@ -106,7 +115,15 @@ export function ActivityChart({ points, title, solar = false }: {
           <thead><tr><th>Время</th><th>{solar ? 'Вт/м²' : 'Kp'}</th></tr></thead>
           <tbody>
             {points.slice(-8).reverse().map(point => (
-              <tr key={point.time}><td>{utc(point.time)}</td><td>{solar ? point.value.toExponential(2) : point.value}</td></tr>
+              <tr key={point.time}>
+                <td>
+                  <button type="button" className="chart-point" onFocus={() => highlight.current(point.time)}
+                    onBlur={() => highlight.current()} onClick={() => highlight.current(point.time)}>
+                    {utc(point.time)}
+                  </button>
+                </td>
+                <td>{solar ? point.value.toExponential(2) : point.value}</td>
+              </tr>
             ))}
           </tbody>
         </table>

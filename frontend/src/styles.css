@@ -38,3 +38,6 @@ button:disabled, fieldset:disabled button { opacity: .65; cursor: wait; }
 :focus-visible { outline: 2px solid #34604f; outline-offset: 3px; }
 th, td { padding: .3rem .25rem; border-bottom: 1px solid var(--line); }
 
+
+.chart-point { padding-inline: .2rem; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+
