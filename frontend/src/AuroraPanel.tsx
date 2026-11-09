@@ -31,6 +31,8 @@ type Result =
 export function AuroraPanel() {
   const [city, setCity] = useState('0');
   const [search, setSearch] = useState('');
+  const [coordinates, setCoordinates] = useState({ lat: '', lon: '' });
+  const [locating, setLocating] = useState(false);
   const matching = cities.map((item, index) => ({ ...item, index })).filter(
     item => normalizeName(placeLabel(item)).includes(normalizeName(search)),
   );
@@ -38,6 +40,20 @@ export function AuroraPanel() {
     ? city : matching.length === 1 ? String(matching[0].index) : '';
   const [result, setResult] = useState<Result>();
   const custom = selected === 'custom';
+
+  function locate() {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(position => {
+      setCoordinates({
+        lat: position.coords.latitude.toFixed(5),
+        lon: position.coords.longitude.toFixed(5),
+      });
+      setCity('custom');
+      setResult(undefined);
+      setLocating(false);
+    }, () => setLocating(false), { timeout: 10_000, maximumAge: 60_000 });
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -61,7 +77,7 @@ export function AuroraPanel() {
       <h2 id="aurora-title">Северное сияние</h2>
       <p className="muted mt-2">Проверьте оценку модели NOAA OVATION для вашей точки.</p>
       <form className="mt-6 grid gap-3" onSubmit={submit}>
-        <fieldset className="grid gap-3" disabled={result?.status === 'loading'}>
+        <fieldset className="grid gap-3" disabled={result?.status === 'loading' || locating}>
           <label className="grid gap-1 text-sm" htmlFor="city-search">
             Поиск по каталогу городов
             <input id="city-search" type="search" value={search} onChange={event => {
@@ -79,10 +95,13 @@ export function AuroraPanel() {
             </select>
           </div>
           {!matching.length && <p className="muted text-sm">Городов не найдено. Можно ввести свои координаты.</p>}
+          <button type="button" className="secondary" onClick={locate}>
+            {locating ? 'Определяем координаты…' : 'Использовать моё местоположение'}
+          </button>
           {custom && (
             <div className="grid gap-3 min-[360px]:grid-cols-2">
-              <label className="grid gap-1 text-sm">Широта<input name="lat" type="number" min="-90" max="90" step="any" required /></label>
-              <label className="grid gap-1 text-sm">Долгота<input name="lon" type="number" min="-180" max="180" step="any" required /></label>
+              <label className="grid gap-1 text-sm">Широта<input name="lat" value={coordinates.lat} onChange={event => setCoordinates({ ...coordinates, lat: event.target.value })} type="number" min="-90" max="90" step="any" required /></label>
+              <label className="grid gap-1 text-sm">Долгота<input name="lon" value={coordinates.lon} onChange={event => setCoordinates({ ...coordinates, lon: event.target.value })} type="number" min="-180" max="180" step="any" required /></label>
             </div>
           )}
           <button className="primary" type="submit" disabled={!selected}>Проверить мой город</button>
