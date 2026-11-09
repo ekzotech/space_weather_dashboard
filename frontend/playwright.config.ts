@@ -10,6 +10,13 @@ export default defineConfig({
   projects: [
     { name: 'desktop', use: devices['Desktop Chrome'] },
     { name: 'mobile', use: devices['Pixel 7'] },
+    {
+      name: 'firefox',
+      use: devices['Desktop Firefox'],
+      testMatch: 'dashboard.spec.ts',
+      grep: /renders both charts and shows an upcoming storm/,
+    },
   ],
 });
+
 
