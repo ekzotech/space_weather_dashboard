@@ -38,3 +38,25 @@ jobs:
       - run: npm run test:e2e
 
 
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --tag space-weather:ci .
+      - name: Verify container readiness and static HTML
+        run: |
+          container=$(docker run --detach --publish 127.0.0.1:39000:3000 space-weather:ci)
+          trap 'docker logs "$container"; docker rm --force "$container"' EXIT
+          for attempt in $(seq 1 30); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$container")
+            if [ "$status" = healthy ]; then
+              break
+            fi
+            sleep 2
+          done
+          test "$status" = healthy
+          test "$(docker exec "$container" id -u)" = 10001
+          curl --fail --silent --show-error http://127.0.0.1:39000/api/health
+          curl --fail --silent --show-error http://127.0.0.1:39000/ | grep -F '<title>Space Weather Dashboard</title>'
+
