@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useFeed, type Storm } from './api';
 import { FeedContent } from './FeedContent';
 import { kp, utc } from './format';
@@ -52,19 +52,59 @@ function StormPages({ storms, sort }: { storms: Storm[]; sort: Sort }) {
   );
 }
 
+const EMPTY_RANGE = { start: '', end: '' };
+
+function validRange(start: string, end: string, today: string) {
+  const validDate = (date: string) => {
+    const parsed = Date.parse(date);
+    return /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(parsed) &&
+      new Date(parsed).toISOString().slice(0, 10) === date;
+  };
+  return validDate(start) && validDate(end) && start <= end && end <= today &&
+    Date.parse(end) - Date.parse(start) < 30 * 86_400_000;
+}
+
+function restoreFilters(today: string) {
+  const query = new URLSearchParams(window.location.search);
+  const start = query.get('storm_start') ?? '';
+  const end = query.get('storm_end') ?? '';
+  const min = Number(query.get('storm_kp'));
+  return {
+    minimum: Number.isInteger(min) && min >= 5 && min <= 9 ? min : 5,
+    sort: (query.get('storm_sort') === 'date' ? 'date' : 'peak') as Sort,
+    range: validRange(start, end, today) ? { start, end } : undefined,
+  };
+}
+
 export function StormArchive() {
-  const [minimum, setMinimum] = useState(5);
-  const [sort, setSort] = useState<Sort>('peak');
-  const [range, setRange] = useState<Range>();
-  const [rangeError, setRangeError] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
+  const [initial] = useState(() => restoreFilters(today));
+  const [minimum, setMinimum] = useState(initial.minimum);
+  const [sort, setSort] = useState(initial.sort);
+  const [range, setRange] = useState(initial.range);
+  const [draft, setDraft] = useState(initial.range ?? EMPTY_RANGE);
+  const [rangeError, setRangeError] = useState(false);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    for (const [name, value] of Object.entries({
+      storm_kp: minimum === 5 ? undefined : String(minimum),
+      storm_sort: sort === 'peak' ? undefined : sort,
+      storm_start: range?.start,
+      storm_end: range?.end,
+    })) {
+      if (value === undefined) url.searchParams.delete(name);
+      else url.searchParams.set(name, value);
+    }
+    window.history.replaceState(window.history.state, '', url);
+  }, [minimum, sort, range]);
 
   function applyRange(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const start = String(data.get('start'));
     const end = String(data.get('end'));
-    if (start > end || end > today || Date.parse(end) - Date.parse(start) >= 30 * 86_400_000) {
+    if (!validRange(start, end, today)) {
       setRangeError(true);
       return;
     }
@@ -78,12 +118,12 @@ export function StormArchive() {
       <p className="muted mt-2">{range ? 'Выбранный период' : 'Последние 30 дней'}.</p>
       <form onSubmit={applyRange} className="mt-4 grid gap-2">
         <div className="grid gap-2 min-[420px]:grid-cols-2">
-          <label className="grid gap-1 text-sm">Начало периода<input name="start" type="date" max={today} defaultValue={range?.start} required /></label>
-          <label className="grid gap-1 text-sm">Конец периода<input name="end" type="date" max={today} defaultValue={range?.end} required /></label>
+          <label className="grid gap-1 text-sm">Начало периода<input name="start" type="date" max={today} value={draft.start} onChange={event => setDraft({ ...draft, start: event.target.value })} required /></label>
+          <label className="grid gap-1 text-sm">Конец периода<input name="end" type="date" max={today} value={draft.end} onChange={event => setDraft({ ...draft, end: event.target.value })} required /></label>
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="submit" className="secondary">Применить даты</button>
-          {range && <button type="reset" className="secondary" onClick={() => { setRange(undefined); setRangeError(false); }}>Сбросить даты</button>}
+          {range && <button type="button" className="secondary" onClick={() => { setRange(undefined); setDraft(EMPTY_RANGE); setRangeError(false); }}>Сбросить даты</button>}
         </div>
         {rangeError && <p role="alert" className="muted text-sm">Укажите период до 30 календарных дней в UTC.</p>}
       </form>
