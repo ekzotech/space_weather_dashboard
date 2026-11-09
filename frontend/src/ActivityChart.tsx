@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Chart, type Plugin, LineController, LineElement, PointElement, LinearScale, LogarithmicScale, Tooltip } from 'chart.js';
 import type { Sample } from './api';
-import { utc } from './format';
+import { chartTime, useChartTime } from './ChartTime';
 
 const stormThreshold: Plugin<'line'> = {
   id: 'stormThreshold',
@@ -38,6 +38,7 @@ export function ActivityChart({ points, title, solar = false }: {
   title: string;
   solar?: boolean;
 }) {
+  const zone = useChartTime();
   const canvas = useRef<HTMLCanvasElement>(null);
   const highlight = useRef<(time?: string) => void>(() => {});
 
@@ -60,7 +61,7 @@ export function ActivityChart({ points, title, solar = false }: {
         animation: false,
         maintainAspectRatio: false,
         interaction: { mode: 'nearest', axis: 'x', intersect: false },
-        plugins: { tooltip: { callbacks: { title: items => utc(new Date(items[0].parsed.x ?? 0).toISOString()) } } },
+        plugins: { tooltip: { callbacks: { title: items => chartTime(new Date(items[0].parsed.x ?? 0).toISOString(), zone) } } },
         scales: {
           x: {
             type: 'linear',
@@ -68,9 +69,10 @@ export function ActivityChart({ points, title, solar = false }: {
             ticks: {
               maxTicksLimit: 5,
               color: '#5c625a',
-              callback: value => solar
-                ? new Date(Number(value)).toISOString().slice(11, 16)
-                : new Date(Number(value)).toISOString().slice(5, 10),
+              callback: value => new Intl.DateTimeFormat('ru-RU', {
+                timeZone: zone === 'utc' ? 'UTC' : undefined,
+                ...(solar ? { hour: '2-digit', minute: '2-digit' } : { month: '2-digit', day: '2-digit' }),
+              }).format(new Date(Number(value))),
             },
           },
           y: solar ? {
@@ -97,7 +99,7 @@ export function ActivityChart({ points, title, solar = false }: {
       highlight.current = () => {};
       chart.destroy();
     };
-  }, [points, solar]);
+  }, [points, solar, zone]);
 
   if (!points.length) return <p className="muted">За этот период данных нет.</p>;
   return (
@@ -106,7 +108,7 @@ export function ActivityChart({ points, title, solar = false }: {
         <canvas ref={canvas} role="img" aria-label={title} />
       </div>
       <figcaption className="muted mt-3 text-sm">
-        {points.length} измерений · последнее {utc(points[points.length - 1].time)}
+        {points.length} измерений · последнее {chartTime(points[points.length - 1].time, zone)}
       </figcaption>
       {!solar && <p className="muted mt-1 text-xs">Пунктир · порог бури Kp 5</p>}
       <details className="mt-3 text-sm">
@@ -119,7 +121,7 @@ export function ActivityChart({ points, title, solar = false }: {
                 <td>
                   <button type="button" className="chart-point" onFocus={() => highlight.current(point.time)}
                     onBlur={() => highlight.current()} onClick={() => highlight.current(point.time)}>
-                    {utc(point.time)}
+                    {chartTime(point.time, zone)}
                   </button>
                 </td>
                 <td>{solar ? point.value.toExponential(2) : point.value}</td>
