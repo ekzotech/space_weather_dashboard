@@ -108,7 +108,7 @@ export function ActivityChart({ points, title, solar = false }: {
         <canvas ref={canvas} role="img" aria-label={title} />
       </div>
       <figcaption className="muted mt-3 text-sm">
-        {points.length} измерений · последнее {chartTime(points[points.length - 1].time, zone)}
+        {points.length} измерений · {chartTime(points[0].time, zone)} — {chartTime(points[points.length - 1].time, zone)}
       </figcaption>
       {!solar && <p className="muted mt-1 text-xs">Пунктир · порог бури Kp 5</p>}
       <details className="mt-3 text-sm">
