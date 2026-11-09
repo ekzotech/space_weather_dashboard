@@ -1,4 +1,8 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
+use tokio::sync::Mutex;
 
 use chrono::{Days, Utc};
 use reqwest::{Client, RequestBuilder};
@@ -18,6 +22,7 @@ const MAX_FEED_BYTES: usize = 4 * 1024 * 1024;
 pub enum FeedError {
     Http(reqwest::Error),
     TooLarge,
+    RateLimited,
     InvalidJson(serde_json::Error),
 }
 
@@ -27,8 +32,37 @@ impl From<reqwest::Error> for FeedError {
     }
 }
 
-async fn fetch_json<T: DeserializeOwned>(request: RequestBuilder) -> Result<T, FeedError> {
-    let mut response = request.send().await?.error_for_status()?;
+async fn fetch_json<T: DeserializeOwned>(
+    request: RequestBuilder,
+    cooldown: &Mutex<Option<Instant>>,
+) -> Result<T, FeedError> {
+    if cooldown
+        .lock()
+        .await
+        .is_some_and(|until| Instant::now() < until)
+    {
+        return Err(FeedError::RateLimited);
+    }
+    let mut response = request.send().await?;
+    if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        let delay = response
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| {
+                value.parse::<u64>().ok().or_else(|| {
+                    let deadline = chrono::DateTime::parse_from_rfc2822(value).ok()?;
+                    Some((deadline.to_utc() - Utc::now()).num_seconds().max(0) as u64)
+                })
+            })
+            .unwrap_or(60)
+            .clamp(1, 86_400);
+        let until = Instant::now() + Duration::from_secs(delay);
+        let mut current = cooldown.lock().await;
+        *current = Some(current.map_or(until, |existing| existing.max(until)));
+        return Err(FeedError::RateLimited);
+    }
+    response = response.error_for_status()?;
     if response
         .content_length()
         .is_some_and(|size| size > MAX_FEED_BYTES as u64)
@@ -49,6 +83,8 @@ const NOAA: &str = "https://services.swpc.noaa.gov";
 
 pub struct Feeds {
     client: Client,
+    noaa_cooldown: Mutex<Option<Instant>>,
+    nasa_cooldown: Mutex<Option<Instant>>,
     kp: Cache<Vec<Sample>>,
     forecast: Cache<Vec<Sample>>,
     xray: Cache<Vec<Sample>>,
@@ -64,6 +100,8 @@ impl Feeds {
                 .timeout(Duration::from_secs(12))
                 .user_agent("SpaceWeatherDashboard/0.1")
                 .build()?,
+            noaa_cooldown: Mutex::new(None),
+            nasa_cooldown: Mutex::new(None),
             kp: Cache::new(five_minutes),
             forecast: Cache::new(five_minutes),
             xray: Cache::new(Duration::from_secs(60)),
@@ -73,7 +111,11 @@ impl Feeds {
     }
 
     async fn noaa<T: DeserializeOwned>(&self, path: &str) -> Result<T, FeedError> {
-        fetch_json(self.client.get(format!("{NOAA}/{path}"))).await
+        fetch_json(
+            self.client.get(format!("{NOAA}/{path}")),
+            &self.noaa_cooldown,
+        )
+        .await
     }
 
     pub async fn kp(&self) -> Result<Arc<Vec<Sample>>, FeedError> {
@@ -132,6 +174,7 @@ impl Feeds {
                             ("startDate", start.to_string()),
                             ("endDate", end.to_string()),
                         ]),
+                    &self.nasa_cooldown,
                 )
                 .await
             })

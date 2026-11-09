@@ -44,6 +44,7 @@ fn upstream(source: &str, error: FeedError) -> ApiError {
             eprintln!("{source}: {error}");
             (StatusCode::BAD_GATEWAY, "upstream_invalid_json")
         }
+        FeedError::RateLimited => (StatusCode::SERVICE_UNAVAILABLE, "upstream_rate_limited"),
         FeedError::TooLarge => (StatusCode::BAD_GATEWAY, "upstream_response_too_large"),
     };
     api_error(status, code)
