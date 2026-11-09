@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use std::{
     future::Future,
     sync::Arc,
@@ -5,13 +6,31 @@ use std::{
 };
 use tokio::sync::Mutex;
 
+#[derive(Debug)]
+pub struct Cached<T> {
+    pub value: Arc<T>,
+    pub received_at: DateTime<Utc>,
+    pub stale: bool,
+}
+
 const RETRY_DELAY: Duration = Duration::from_secs(30);
 const STALE_WINDOW: Duration = Duration::from_secs(30 * 60);
 
 struct Entry<T> {
     received: Instant,
     value: Arc<T>,
+    received_at: DateTime<Utc>,
     failed: Option<Instant>,
+}
+
+impl<T> Entry<T> {
+    fn snapshot(&self, stale: bool) -> Cached<T> {
+        Cached {
+            value: Arc::clone(&self.value),
+            received_at: self.received_at,
+            stale,
+        }
+    }
 }
 
 pub struct Cache<T> {
@@ -27,7 +46,7 @@ impl<T> Cache<T> {
         }
     }
 
-    pub async fn get<E>(&self, load: impl Future<Output = Result<T, E>>) -> Result<Arc<T>, E> {
+    pub async fn get<E>(&self, load: impl Future<Output = Result<T, E>>) -> Result<Cached<T>, E> {
         self.get_with_clock(load, Instant::now).await
     }
 
@@ -35,7 +54,7 @@ impl<T> Cache<T> {
         &self,
         load: impl Future<Output = Result<T, E>>,
         now: impl Fn() -> Instant,
-    ) -> Result<Arc<T>, E> {
+    ) -> Result<Cached<T>, E> {
         let mut entry = self.entry.lock().await;
         if let Some(entry) = entry.as_ref() {
             let age = now().duration_since(entry.received);
@@ -43,26 +62,29 @@ impl<T> Cache<T> {
                 .failed
                 .is_some_and(|failed| now().duration_since(failed) < RETRY_DELAY);
             if age < self.ttl || (age < self.ttl + STALE_WINDOW && backing_off) {
-                return Ok(Arc::clone(&entry.value));
+                return Ok(entry.snapshot(age >= self.ttl));
             }
         }
 
         match load.await {
             Ok(value) => {
                 let value = Arc::new(value);
-                *entry = Some(Entry {
+                let loaded = Entry {
                     received: now(),
-                    value: Arc::clone(&value),
+                    value,
+                    received_at: Utc::now(),
                     failed: None,
-                });
-                Ok(value)
+                };
+                let result = loaded.snapshot(false);
+                *entry = Some(loaded);
+                Ok(result)
             }
             Err(error) => {
                 if let Some(entry) = entry.as_mut()
                     && now().duration_since(entry.received) < self.ttl + STALE_WINDOW
                 {
                     entry.failed = Some(now());
-                    return Ok(Arc::clone(&entry.value));
+                    return Ok(entry.snapshot(true));
                 }
                 Err(error)
             }
@@ -87,7 +109,7 @@ mod tests {
                 })
                 .await
                 .unwrap();
-            assert_eq!(*result, expected);
+            assert_eq!(*result.value, expected);
         }
     }
 
@@ -104,7 +126,8 @@ mod tests {
             .get_with_clock(async { Err(()) }, || start + ttl)
             .await
             .unwrap();
-        assert_eq!(*stale, 42);
+        assert_eq!(*stale.value, 42);
+        assert!(stale.stale);
         assert!(
             cache
                 .get_with_clock(async { Err(()) }, || start + ttl + STALE_WINDOW)
@@ -140,7 +163,7 @@ mod tests {
         };
 
         let (a, b) = tokio::join!(first, second);
-        let b: Result<Arc<i32>, ()> = b;
-        assert!(Arc::ptr_eq(&a.unwrap(), &b.unwrap()));
+        let b: Result<Cached<i32>, ()> = b;
+        assert!(Arc::ptr_eq(&a.unwrap().value, &b.unwrap().value));
     }
 }

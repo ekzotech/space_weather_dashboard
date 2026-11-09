@@ -1,7 +1,4 @@
-use std::{
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
 use chrono::{Days, Utc};
@@ -10,7 +7,7 @@ use serde::de::DeserializeOwned;
 
 use crate::{
     aurora::{AuroraGrid, Ovation},
-    cache::Cache,
+    cache::{Cache, Cached},
     domain::Sample,
     nasa::DonkiStorm,
     noaa::{kp_series, xray_series},
@@ -118,7 +115,7 @@ impl Feeds {
         .await
     }
 
-    pub async fn kp(&self) -> Result<Arc<Vec<Sample>>, FeedError> {
+    pub async fn kp(&self) -> Result<Cached<Vec<Sample>>, FeedError> {
         self.kp
             .get(async {
                 Ok(kp_series(
@@ -129,7 +126,7 @@ impl Feeds {
             .await
     }
 
-    pub async fn forecast(&self) -> Result<Arc<Vec<Sample>>, FeedError> {
+    pub async fn forecast(&self) -> Result<Cached<Vec<Sample>>, FeedError> {
         self.forecast
             .get(async {
                 Ok(kp_series(
@@ -141,7 +138,7 @@ impl Feeds {
             .await
     }
 
-    pub async fn xray(&self) -> Result<Arc<Vec<Sample>>, FeedError> {
+    pub async fn xray(&self) -> Result<Cached<Vec<Sample>>, FeedError> {
         self.xray
             .get(async {
                 Ok(xray_series(
@@ -151,7 +148,7 @@ impl Feeds {
             .await
     }
 
-    pub async fn aurora(&self) -> Result<Arc<AuroraGrid>, FeedError> {
+    pub async fn aurora(&self) -> Result<Cached<AuroraGrid>, FeedError> {
         self.aurora
             .get(async {
                 Ok(AuroraGrid::from(
@@ -162,7 +159,7 @@ impl Feeds {
             .await
     }
 
-    pub async fn storms(&self) -> Result<Arc<Vec<DonkiStorm>>, FeedError> {
+    pub async fn storms(&self) -> Result<Cached<Vec<DonkiStorm>>, FeedError> {
         self.storms
             .get(async {
                 let end = Utc::now().date_naive();

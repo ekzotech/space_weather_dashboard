@@ -10,7 +10,7 @@ use std::{env, sync::Arc};
 use axum::{
     Json, Router,
     extract::{Query, State},
-    http::StatusCode,
+    http::{HeaderMap, HeaderValue, StatusCode},
     routing::get,
 };
 use chrono::{DateTime, Duration, Utc};
@@ -18,10 +18,25 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use aurora::valid_coordinates;
+use cache::Cached;
 use domain::{Sample, Storm, rank_storms};
 use feeds::{FeedError, Feeds};
 
 type AppState = State<Arc<Feeds>>;
+type ApiResponse<T> = (HeaderMap, Json<T>);
+
+fn feed_headers<T>(cache: &Cached<T>) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    if let Ok(received) = HeaderValue::from_str(&cache.received_at.to_rfc3339()) {
+        headers.insert("x-feed-received-at", received);
+    }
+    headers.insert(
+        "x-feed-stale",
+        HeaderValue::from_static(if cache.stale { "true" } else { "false" }),
+    );
+    headers
+}
+
 type ApiError = (StatusCode, Json<Value>);
 
 fn api_error(status: StatusCode, code: &str) -> ApiError {
@@ -50,34 +65,38 @@ fn upstream(source: &str, error: FeedError) -> ApiError {
     api_error(status, code)
 }
 
-async fn kp(State(feeds): AppState) -> Result<Json<Vec<Sample>>, ApiError> {
+async fn kp(State(feeds): AppState) -> Result<ApiResponse<Vec<Sample>>, ApiError> {
     feeds
         .kp()
         .await
-        .map(|points| Json(points.as_ref().clone()))
+        .map(|points| (feed_headers(&points), Json(points.value.as_ref().clone())))
         .map_err(|e| upstream("NOAA Kp", e))
 }
 
-async fn forecast(State(feeds): AppState) -> Result<Json<Vec<Sample>>, ApiError> {
+async fn forecast(State(feeds): AppState) -> Result<ApiResponse<Vec<Sample>>, ApiError> {
     let now = Utc::now();
     let points = feeds
         .forecast()
         .await
         .map_err(|e| upstream("NOAA forecast", e))?;
-    Ok(Json(
-        points
-            .iter()
-            .filter(|point| point.time + Duration::hours(3) > now)
-            .cloned()
-            .collect(),
+    Ok((
+        feed_headers(&points),
+        Json(
+            points
+                .value
+                .iter()
+                .filter(|point| point.time + Duration::hours(3) > now)
+                .cloned()
+                .collect(),
+        ),
     ))
 }
 
-async fn xray(State(feeds): AppState) -> Result<Json<Vec<Sample>>, ApiError> {
+async fn xray(State(feeds): AppState) -> Result<ApiResponse<Vec<Sample>>, ApiError> {
     feeds
         .xray()
         .await
-        .map(|points| Json(points.as_ref().clone()))
+        .map(|points| (feed_headers(&points), Json(points.value.as_ref().clone())))
         .map_err(|e| upstream("NOAA GOES", e))
 }
 
@@ -89,7 +108,7 @@ struct StormFilter {
 async fn storms(
     State(feeds): AppState,
     Query(filter): Query<StormFilter>,
-) -> Result<Json<Vec<Storm>>, ApiError> {
+) -> Result<ApiResponse<Vec<Storm>>, ApiError> {
     let min = filter.min_kp.unwrap_or(5.0);
     if !(5.0..=9.0).contains(&min) {
         return Err(api_error(StatusCode::BAD_REQUEST, "invalid_min_kp"));
@@ -98,9 +117,13 @@ async fn storms(
         .storms()
         .await
         .map_err(|e| upstream("NASA DONKI", e))?;
-    let mut storms = rows.iter().filter_map(nasa::DonkiStorm::as_storm).collect();
+    let mut storms = rows
+        .value
+        .iter()
+        .filter_map(nasa::DonkiStorm::as_storm)
+        .collect();
     rank_storms(&mut storms, min);
-    Ok(Json(storms))
+    Ok((feed_headers(&rows), Json(storms)))
 }
 
 #[derive(Deserialize)]
@@ -120,7 +143,7 @@ struct AuroraEstimate {
 async fn aurora(
     State(feeds): AppState,
     Query(point): Query<Coordinates>,
-) -> Result<Json<AuroraEstimate>, ApiError> {
+) -> Result<ApiResponse<AuroraEstimate>, ApiError> {
     if !valid_coordinates(point.lat, point.lon) {
         return Err(api_error(StatusCode::BAD_REQUEST, "invalid_coordinates"));
     }
@@ -128,17 +151,20 @@ async fn aurora(
         .aurora()
         .await
         .map_err(|e| upstream("NOAA OVATION", e))?;
-    let stale = Utc::now() - grid.observation_time > Duration::hours(1);
-    Ok(Json(AuroraEstimate {
-        probability: if stale {
-            None
-        } else {
-            grid.estimate(point.lat, point.lon)
-        },
-        observation_time: grid.observation_time,
-        forecast_time: grid.forecast_time,
-        stale,
-    }))
+    let stale = Utc::now() - grid.value.observation_time > Duration::hours(1);
+    Ok((
+        feed_headers(&grid),
+        Json(AuroraEstimate {
+            probability: if stale {
+                None
+            } else {
+                grid.value.estimate(point.lat, point.lon)
+            },
+            observation_time: grid.value.observation_time,
+            forecast_time: grid.value.forecast_time,
+            stale,
+        }),
+    ))
 }
 
 #[tokio::main]
