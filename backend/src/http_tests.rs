@@ -42,3 +42,22 @@ async fn rejects_kp_outside_the_storm_scale() {
         );
     }
 }
+
+#[tokio::test]
+async fn rejects_invalid_coordinates() {
+    for (point, error) in [
+        ("lat=91&lon=0", "invalid_coordinates"),
+        ("lat=0&lon=-181", "invalid_coordinates"),
+        ("lat=NaN&lon=0", "invalid_coordinates"),
+        ("lat=65", "invalid_query"),
+    ] {
+        assert_eq!(
+            request(
+                router(Feeds::new().unwrap()),
+                &format!("/api/aurora?{point}")
+            )
+            .await,
+            (StatusCode::BAD_REQUEST, json!({"error": error}))
+        );
+    }
+}
