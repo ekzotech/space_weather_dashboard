@@ -2,7 +2,7 @@ import { useFeed, type Sample } from './api';
 import { FeedContent } from './FeedContent';
 import { kp, utc } from './format';
 
-const WINDOW_MS = 3 * 60 * 60_000;
+import { stormWindows, WINDOW_MS } from './stormWindows';
 
 function forecastEnd(time: string) {
   return utc(new Date(Date.parse(time) + WINDOW_MS).toISOString());
@@ -33,16 +33,16 @@ export function Overview({ observations }: { observations: ReturnType<typeof use
         <p className="eyebrow">Предупреждения · NOAA</p>
         <FeedContent feed={forecast}>
           {points => {
-            const windows = points.filter(point => point.value >= 5);
+            const windows = stormWindows(points, 5);
             const next = windows[0];
             if (!points.length) return <p className="muted mt-2">Актуального прогноза пока нет.</p>;
             const through = <p className="muted mt-2 text-sm">Горизонт · до {forecastEnd(points.at(-1)!.time)}</p>;
             return next ? (
               <>
-                <p className="badge warning mt-3">Ожидается G{Math.floor(next.value) - 4}</p>
+                <p className="badge warning mt-3">Ожидается G{Math.floor(next.peak) - 4}</p>
                 <ul className="mt-2 divide-y divide-[#eaeaea]" aria-label="Окна бурь">
-                  {windows.map(point => <li key={point.time} className="py-2 text-sm">
-                    {utc(point.time)} — {forecastEnd(point.time)} · Kp {kp(point.value)}
+                  {windows.map(window => <li key={window.start} className="py-2 text-sm">
+                    {utc(window.start)} — {utc(window.end)} · Kp {kp(window.peak)}
                   </li>)}
                 </ul>
                 {through}
