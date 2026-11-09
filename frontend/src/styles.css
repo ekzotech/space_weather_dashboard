@@ -41,3 +41,7 @@ th, td { padding: .3rem .25rem; border-bottom: 1px solid var(--line); }
 
 .chart-point { padding-inline: .2rem; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
 
+
+.skip-link { position: absolute; z-index: 2; top: .5rem; left: .5rem; padding: .65rem 1rem; background: #fff; transform: translateY(-200%); }
+.skip-link:focus { transform: none; }
+

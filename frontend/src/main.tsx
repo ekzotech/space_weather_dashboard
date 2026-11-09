@@ -18,6 +18,7 @@ function Dashboard() {
 
   return (
     <div className="shell mx-auto max-w-6xl px-4 sm:px-8">
+      <a className="skip-link" href="#main-content">Перейти к содержимому</a>
       <header className="masthead flex flex-wrap items-center justify-between gap-x-6 gap-y-3 py-5">
         <div className="flex items-center gap-3">
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
@@ -28,7 +29,7 @@ function Dashboard() {
         </div>
         <a className="text-sm underline underline-offset-4" href="#aurora">Проверить сияние</a>
       </header>
-      <main className="pb-12">
+      <main id="main-content" tabIndex={-1} className="pb-12">
         <section className="hero">
           <p className="eyebrow">Мониторинг Земли и Солнца</p>
           <h1 className="mt-3">Космическая<br className="sm:hidden" /> погода</h1>
@@ -77,5 +78,6 @@ function Dashboard() {
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><Dashboard /></StrictMode>);
+
 
 
