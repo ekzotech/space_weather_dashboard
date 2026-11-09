@@ -11,9 +11,23 @@ function StormList({ minimum, range, sort }: { minimum: number; range?: Range; s
   const feed = useFeed<Storm[]>('storms?' + query);
   return (
     <FeedContent feed={feed}>
-      {storms => storms.length ? (
+      {storms => storms.length ? <StormPages key={sort} storms={storms} sort={sort} /> : <p className="muted">{range ? 'За выбранный период бурь с таким Kp не найдено.' : 'За 30 дней бурь с таким Kp не найдено.'}</p>}
+    </FeedContent>
+  );
+}
+
+const PAGE_SIZE = 5;
+
+function StormPages({ storms, sort }: { storms: Storm[]; sort: Sort }) {
+  const [page, setPage] = useState(0);
+  const ordered = sort === 'date' ? [...storms].sort((a, b) => Date.parse(b.start) - Date.parse(a.start)) : storms;
+  const pageCount = Math.ceil(ordered.length / PAGE_SIZE);
+  const current = Math.min(page, pageCount - 1);
+  const visible = ordered.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
+  return (
+    <>
         <ul className="divide-y divide-[#eaeaea]">
-          {(sort === 'date' ? [...storms].sort((a, b) => Date.parse(b.start) - Date.parse(a.start)) : storms).map(storm => (
+          {visible.map(storm => (
             <li key={storm.id} className="py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
               <time dateTime={storm.start}>{utc(storm.start)}</time>
@@ -29,8 +43,12 @@ function StormList({ minimum, range, sort }: { minimum: number; range?: Range; s
             </li>
           ))}
         </ul>
-      ) : <p className="muted">{range ? 'За выбранный период бурь с таким Kp не найдено.' : 'За 30 дней бурь с таким Kp не найдено.'}</p>}
-    </FeedContent>
+      {pageCount > 1 && <nav className="mt-3 flex flex-wrap items-center gap-2 text-sm" aria-label="Страницы архива">
+        <button className="secondary" disabled={current === 0} onClick={() => setPage(current - 1)}>Назад</button>
+        <span aria-live="polite">{current + 1} из {pageCount}</span>
+        <button className="secondary" disabled={current + 1 === pageCount} onClick={() => setPage(current + 1)}>Вперёд</button>
+      </nav>}
+    </>
   );
 }
 
@@ -86,5 +104,6 @@ export function StormArchive() {
     </section>
   );
 }
+
 
 
