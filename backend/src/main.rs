@@ -48,24 +48,36 @@ fn api_error(status: StatusCode, code: &str) -> ApiError {
 }
 
 fn upstream(source: &str, error: FeedError) -> ApiError {
-    let (status, code) = match error {
-        FeedError::Http(error) => {
-            eprintln!("{source}: {error}");
-            match error.status() {
-                Some(StatusCode::TOO_MANY_REQUESTS) => {
-                    (StatusCode::SERVICE_UNAVAILABLE, "upstream_rate_limited")
-                }
-                _ if error.is_timeout() => (StatusCode::GATEWAY_TIMEOUT, "upstream_timeout"),
-                _ => (StatusCode::BAD_GATEWAY, "upstream_unavailable"),
-            }
+    let (status, code, upstream_status) = match &error {
+        FeedError::Http(error) if error.is_timeout() => {
+            (StatusCode::GATEWAY_TIMEOUT, "upstream_timeout", 0)
         }
-        FeedError::InvalidJson(error) => {
-            eprintln!("{source}: {error}");
-            (StatusCode::BAD_GATEWAY, "upstream_invalid_json")
-        }
-        FeedError::RateLimited => (StatusCode::SERVICE_UNAVAILABLE, "upstream_rate_limited"),
-        FeedError::TooLarge => (StatusCode::BAD_GATEWAY, "upstream_response_too_large"),
+        FeedError::Http(error) => (
+            StatusCode::BAD_GATEWAY,
+            "upstream_unavailable",
+            error.status().map_or(0, |status| status.as_u16()),
+        ),
+        FeedError::InvalidJson(_) => (StatusCode::BAD_GATEWAY, "upstream_invalid_json", 0),
+        FeedError::RateLimited => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "upstream_rate_limited",
+            429,
+        ),
+        FeedError::TooLarge => (StatusCode::BAD_GATEWAY, "upstream_response_too_large", 0),
     };
+    let json_line = if let FeedError::InvalidJson(error) = &error {
+        error.line()
+    } else {
+        0
+    };
+    tracing::warn!(
+        source,
+        upstream_status,
+        status = status.as_u16(),
+        code,
+        json_line,
+        "upstream feed failure"
+    );
     api_error(status, code)
 }
 
@@ -285,6 +297,7 @@ async fn shutdown_signal() {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt().json().init();
     let addr = env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:3000".into());
     let mut app = router(Feeds::new()?);
     if let Some(directory) = env::var_os("STATIC_DIR") {
@@ -295,7 +308,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    println!("Space Weather API at http://{}", listener.local_addr()?);
+    tracing::info!(address = %listener.local_addr()?, "space weather API listening");
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
