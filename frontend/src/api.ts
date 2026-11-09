@@ -27,22 +27,37 @@ export function useFeed<T>(path: string, interval?: number) {
 
   useEffect(() => {
     const controller = new AbortController();
+    let lastAttempt = 0;
+    let inFlight = false;
     async function refresh() {
+      if (inFlight) return;
+      inFlight = true;
+      lastAttempt = Date.now();
       try {
         const data = await get<T>(path, controller.signal);
         if (!controller.signal.aborted) setState({ status: 'ready', data });
       } catch {
         if (!controller.signal.aborted) setState({ status: 'error' });
+      } finally {
+        inFlight = false;
       }
     }
     void refresh();
-    const timer = interval && window.setInterval(refresh, interval);
+    const refreshVisible = () => {
+      if (interval && document.visibilityState === 'visible' && Date.now() - lastAttempt >= interval) {
+        void refresh();
+      }
+    };
+    const timer = interval && window.setInterval(refreshVisible, interval);
+    document.addEventListener('visibilitychange', refreshVisible);
     return () => {
       controller.abort();
+      document.removeEventListener('visibilitychange', refreshVisible);
       window.clearInterval(timer);
     };
   }, [path, interval, attempt]);
 
   return { ...state, retry };
 }
+
 
