@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActivityChart } from './ActivityChart';
+import { downloadSeries } from './csv';
 import { FeedContent } from './FeedContent';
 import type { Sample, useFeed } from './api';
 
@@ -21,7 +22,12 @@ export function KpPanel({ observations }: { observations: ReturnType<typeof useF
         {points => {
           const end = Date.parse(points.at(-1)?.time ?? '');
           const range = points.filter(point => Date.parse(point.time) >= end - days * 86_400_000);
-          return <ActivityChart points={range} title="График планетарного Kp" />;
+          return (
+            <>
+              <ActivityChart points={range} title="График планетарного Kp" />
+              {!!range.length && <button className="secondary mt-3" onClick={() => downloadSeries(range, 'kp.csv', 'kp')}>Скачать Kp CSV</button>}
+            </>
+          );
         }}
       </FeedContent>
     </section>
