@@ -2,6 +2,12 @@ import { useFeed, type Sample } from './api';
 import { FeedContent } from './FeedContent';
 import { kp, utc } from './format';
 
+const WINDOW_MS = 3 * 60 * 60_000;
+
+function forecastEnd(time: string) {
+  return utc(new Date(Date.parse(time) + WINDOW_MS).toISOString());
+}
+
 export function Overview({ observations }: { observations: ReturnType<typeof useFeed<Sample[]>> }) {
   const forecast = useFeed<Sample[]>('forecast', 300_000);
   return (
@@ -29,16 +35,19 @@ export function Overview({ observations }: { observations: ReturnType<typeof use
           {points => {
             const next = points.find(point => point.value >= 5);
             if (!points.length) return <p className="muted mt-2">Актуального прогноза пока нет.</p>;
+            const through = <p className="muted mt-2 text-sm">Горизонт · до {forecastEnd(points.at(-1)!.time)}</p>;
             return next ? (
               <>
                 <p className="badge warning mt-3">Ожидается G{Math.floor(next.value) - 4}</p>
                 <p className="mt-3">Kp {kp(next.value)} · {utc(next.time)}</p>
                 <p className="muted mt-1 text-sm">Начало прогнозного трёхчасового окна.</p>
+                {through}
               </>
             ) : (
               <>
                 <p className="badge calm mt-3">Kp ниже 5</p>
                 <p className="muted mt-3 text-sm">На доступном горизонте прогноза бурь не ожидается.</p>
+                {through}
               </>
             );
           }}
@@ -47,4 +56,5 @@ export function Overview({ observations }: { observations: ReturnType<typeof use
     </div>
   );
 }
+
 
