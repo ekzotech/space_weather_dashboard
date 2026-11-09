@@ -237,3 +237,24 @@ async fn serves_html_and_versioned_assets_with_safe_cache_headers() {
     assert!(missing.headers().get(header::CACHE_CONTROL).is_none());
     server.abort();
 }
+
+#[tokio::test]
+async fn reports_upstream_attempts_and_failures_by_provider() {
+    let (provider_url, provider) =
+        start(Router::new().route("/gst", get(|| async { StatusCode::BAD_GATEWAY }))).await;
+    let (base, server) = start(router(Feeds::new().unwrap().test_sources(&provider_url))).await;
+    assert_eq!(
+        reqwest::get(format!("{base}/api/storms"))
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::BAD_GATEWAY
+    );
+    let response = reqwest::get(format!("{base}/api/metrics")).await.unwrap();
+    let body = response.text().await.unwrap();
+    assert!(body.contains("space_weather_upstream_requests_total{provider=\"nasa\"} 1"));
+    assert!(body.contains("space_weather_upstream_errors_total{provider=\"nasa\"} 1"));
+    assert!(body.contains("space_weather_upstream_requests_total{provider=\"noaa\"} 0"));
+    server.abort();
+    provider.abort();
+}

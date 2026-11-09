@@ -2,6 +2,7 @@ mod aurora;
 mod cache;
 mod domain;
 mod feeds;
+mod metrics;
 mod nasa;
 mod noaa;
 mod sun;
@@ -226,6 +227,18 @@ fn router(feeds: Feeds) -> Router {
         .route(
             "/api/health",
             get(|| async { Json(json!({ "status": "ok" })) }),
+        )
+        .route(
+            "/api/metrics",
+            get(|State(feeds): AppState| async move {
+                (
+                    [(
+                        header::CONTENT_TYPE,
+                        "text/plain; version=0.0.4; charset=utf-8",
+                    )],
+                    feeds.metrics(),
+                )
+            }),
         )
         .route("/api/kp", get(kp))
         .route("/api/forecast", get(forecast))

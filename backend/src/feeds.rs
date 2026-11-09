@@ -9,6 +9,7 @@ use crate::{
     aurora::{AuroraGrid, Ovation},
     cache::{Cache, Cached},
     domain::Sample,
+    metrics::{self, FeedMetrics},
     nasa::DonkiStorm,
     noaa::{kp_series, xray_series},
 };
@@ -30,6 +31,17 @@ impl From<reqwest::Error> for FeedError {
 }
 
 async fn fetch_json<T: DeserializeOwned>(
+    request: RequestBuilder,
+    cooldown: &Mutex<Option<Instant>>,
+    metrics: &FeedMetrics,
+) -> Result<T, FeedError> {
+    let started = Instant::now();
+    let result = request_json(request, cooldown).await;
+    metrics.record(started.elapsed(), result.is_err());
+    result
+}
+
+async fn request_json<T: DeserializeOwned>(
     request: RequestBuilder,
     cooldown: &Mutex<Option<Instant>>,
 ) -> Result<T, FeedError> {
@@ -96,6 +108,9 @@ pub struct Feeds {
     noaa_cooldown: Mutex<Option<Instant>>,
     nasa_cooldown: Mutex<Option<Instant>>,
     weather_cooldown: Mutex<Option<Instant>>,
+    noaa_metrics: FeedMetrics,
+    nasa_metrics: FeedMetrics,
+    weather_metrics: FeedMetrics,
     kp: Cache<Vec<Sample>>,
     forecast: Cache<Vec<Sample>>,
     xray: Cache<Vec<Sample>>,
@@ -116,12 +131,27 @@ impl Feeds {
             noaa_cooldown: Mutex::new(None),
             nasa_cooldown: Mutex::new(None),
             weather_cooldown: Mutex::new(None),
+            noaa_metrics: FeedMetrics::default(),
+            nasa_metrics: FeedMetrics::default(),
+            weather_metrics: FeedMetrics::default(),
             kp: Cache::new(five_minutes),
             forecast: Cache::new(five_minutes),
             xray: Cache::new(Duration::from_secs(60)),
             aurora: Cache::new(five_minutes),
             storms: Cache::new(Duration::from_secs(1800)),
         })
+    }
+
+    pub fn metrics(&self) -> String {
+        let mut output = String::from(metrics::HELP);
+        for (provider, metrics) in [
+            ("noaa", &self.noaa_metrics),
+            ("nasa", &self.nasa_metrics),
+            ("open_meteo", &self.weather_metrics),
+        ] {
+            metrics.write(&mut output, provider);
+        }
+        output
     }
 
     #[cfg(test)]
@@ -135,6 +165,7 @@ impl Feeds {
         fetch_json(
             self.client.get(format!("{}/{path}", self.noaa_base)),
             &self.noaa_cooldown,
+            &self.noaa_metrics,
         )
         .await
     }
@@ -194,6 +225,7 @@ impl Feeds {
                     ("timezone", "UTC".into()),
                 ]),
             &self.weather_cooldown,
+            &self.weather_metrics,
         )
         .await?;
         Ok(data.current)
@@ -210,6 +242,7 @@ impl Feeds {
                 ("endDate", end.to_string()),
             ]),
             &self.nasa_cooldown,
+            &self.nasa_metrics,
         )
         .await
     }
