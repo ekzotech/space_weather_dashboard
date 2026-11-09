@@ -16,6 +16,7 @@ pub struct Storm {
     pub id: String,
     pub start: DateTime<Utc>,
     pub peak_kp: f64,
+    pub peak_source: Option<String>,
     pub level: u8,
     pub linked_events: Vec<String>,
 }
@@ -55,6 +56,7 @@ mod tests {
                 .unwrap()
                 .to_utc(),
             peak_kp,
+            peak_source: None,
             level: storm_level(peak_kp).unwrap(),
             linked_events: vec![],
         };

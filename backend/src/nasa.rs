@@ -18,6 +18,7 @@ pub struct DonkiStorm {
 #[serde(rename_all = "camelCase")]
 struct KpReading {
     kp_index: f64,
+    source: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -42,18 +43,19 @@ where
 
 impl DonkiStorm {
     pub fn as_storm(&self) -> Option<Storm> {
-        let peak_kp = self
+        let peak = self
             .all_kp_index
             .as_ref()?
             .iter()
-            .map(|reading| reading.kp_index)
-            .filter(|kp| (0.0..=9.0).contains(kp))
-            .max_by(f64::total_cmp)?;
+            .filter(|reading| (0.0..=9.0).contains(&reading.kp_index))
+            .max_by(|a, b| a.kp_index.total_cmp(&b.kp_index))?;
+        let peak_kp = peak.kp_index;
 
         Some(Storm {
             id: self.gst_id.clone(),
             start: self.start_time,
             peak_kp,
+            peak_source: peak.source.clone(),
             level: storm_level(peak_kp)?,
             linked_events: self
                 .linked_events
@@ -76,6 +78,7 @@ mod tests {
         let storms: Vec<_> = rows.iter().filter_map(DonkiStorm::as_storm).collect();
         assert_eq!(storms.len(), 1);
         assert_eq!(storms[0].peak_kp, 8.67);
+        assert_eq!(storms[0].peak_source.as_deref(), Some("NOAA"));
         assert_eq!(storms[0].level, 4);
         assert_eq!(storms[0].linked_events, ["2024-05-08T05:36:00-CME-001"]);
     }

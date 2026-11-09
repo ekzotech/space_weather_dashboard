@@ -21,6 +21,7 @@ function StormList({ minimum, range, sort }: { minimum: number; range?: Range; s
               </div>
               <details className="mt-2 text-sm">
                 <summary className="cursor-pointer">Связанные события</summary>
+                <p className="muted mt-2">Источник пикового Kp · {storm.peak_source || 'не указан'}</p>
                 {storm.linked_events.length
                   ? <ul className="mt-2 break-all">{storm.linked_events.map(id => <li key={id}>{id}</li>)}</ul>
                   : <p className="muted mt-2">Связи не указаны.</p>}

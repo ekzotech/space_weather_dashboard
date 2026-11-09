@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 export type Sample = { time: string; value: number };
-export type Storm = { id: string; start: string; peak_kp: number; level: number; linked_events: string[] };
+export type Storm = { id: string; start: string; peak_kp: number; peak_source?: string | null; level: number; linked_events: string[] };
 export type Aurora = {
   probability: number | null;
   grid_distance_km: number | null;
@@ -74,6 +74,7 @@ export function useFeed<T>(path: string, interval?: number) {
 
   return { ...state, retry };
 }
+
 
 
 

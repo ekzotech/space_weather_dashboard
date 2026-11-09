@@ -332,7 +332,8 @@
                     "level": 2,
                     "linked_events": [
                       "CME-001"
-                    ]
+                    ],
+                    "peak_source": null
                   }
                 ]
               }
@@ -613,7 +614,8 @@
           "start",
           "peak_kp",
           "level",
-          "linked_events"
+          "linked_events",
+          "peak_source"
         ],
         "properties": {
           "id": {
@@ -638,6 +640,12 @@
             "items": {
               "type": "string"
             }
+          },
+          "peak_source": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
