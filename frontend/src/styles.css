@@ -48,3 +48,7 @@ th, td { padding: .3rem .25rem; border-bottom: 1px solid var(--line); }
 .field-error { color: #9f2f2d; }
 input[aria-invalid='true'] { border-color: #9f2f2d; }
 
+@media (forced-colors: active) {
+  .badge { border: 1px solid CanvasText; }
+}
+

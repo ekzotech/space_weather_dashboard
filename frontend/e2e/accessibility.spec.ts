@@ -106,3 +106,12 @@ test('exposes the changing aurora result as an accessible status', async ({ page
   await expect(status).toHaveAttribute('aria-atomic', 'true');
 });
 
+test('keeps the forecast warning readable in forced colors', async ({ page }) => {
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.goto('/');
+  const warning = page.getByText('Ожидается G3');
+  await expect(warning).toBeVisible();
+  await expect(warning).toHaveCSS('border-top-width', '1px');
+  await expect(warning).toHaveCSS('border-top-style', 'solid');
+});
+
