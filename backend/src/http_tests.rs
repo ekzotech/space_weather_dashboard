@@ -23,3 +23,22 @@ async fn health_reports_process_readiness() {
         (StatusCode::OK, json!({"status": "ok"}))
     );
 }
+
+#[tokio::test]
+async fn rejects_kp_outside_the_storm_scale() {
+    for (value, error) in [
+        ("4.99", "invalid_min_kp"),
+        ("9.01", "invalid_min_kp"),
+        ("NaN", "invalid_min_kp"),
+        ("text", "invalid_query"),
+    ] {
+        assert_eq!(
+            request(
+                router(Feeds::new().unwrap()),
+                &format!("/api/storms?min_kp={value}")
+            )
+            .await,
+            (StatusCode::BAD_REQUEST, json!({"error": error}))
+        );
+    }
+}
