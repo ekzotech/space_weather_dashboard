@@ -66,3 +66,20 @@ test('recovers when the solar feed is temporarily unavailable', async ({ page })
   await expect(solar.getByRole('img')).toHaveAttribute('data-points', '2');
 });
 
+
+test('shows an expired OVATION forecast for custom coordinates', async ({ page }) => {
+  await page.route('**/api/aurora?*', route => {
+    const { searchParams } = new URL(route.request().url());
+    expect(searchParams.get('lat')).toBe('66.25');
+    expect(searchParams.get('lon')).toBe('-179.75');
+    return route.fulfill({
+      json: { probability: null, observation_time: first, forecast_time: second, stale: true },
+    });
+  });
+  await page.goto('/');
+  await page.getByRole('combobox', { name: 'Город', exact: true }).selectOption('custom');
+  await page.getByLabel('Широта').fill('66.25');
+  await page.getByLabel('Долгота').fill('-179.75');
+  await page.getByRole('button', { name: 'Проверить мой город' }).click();
+  await expect(page.getByText('Последний прогноз устарел.')).toBeVisible();
+});
