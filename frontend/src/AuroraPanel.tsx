@@ -18,15 +18,21 @@ type Result =
 
 export function AuroraPanel() {
   const [city, setCity] = useState('0');
+  const [search, setSearch] = useState('');
+  const matching = cities.map((item, index) => ({ ...item, index })).filter(
+    item => item.name.toLocaleLowerCase('ru').includes(search.trim().toLocaleLowerCase('ru')),
+  );
+  const selected = city === 'custom' || matching.some(item => String(item.index) === city)
+    ? city : matching.length === 1 ? String(matching[0].index) : '';
   const [result, setResult] = useState<Result>();
-  const custom = city === 'custom';
+  const custom = selected === 'custom';
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const point = custom
       ? { name: 'Выбранные координаты', lat: Number(form.get('lat')), lon: Number(form.get('lon')) }
-      : cities[Number(city)];
+      : cities[Number(selected)];
     setResult({ status: 'loading' });
     try {
       const query = new URLSearchParams({ lat: String(point.lat), lon: String(point.lon) });
@@ -44,20 +50,30 @@ export function AuroraPanel() {
       <p className="muted mt-2">Проверьте оценку модели NOAA OVATION для вашей точки.</p>
       <form className="mt-6 grid gap-3" onSubmit={submit}>
         <fieldset className="grid gap-3" disabled={result?.status === 'loading'}>
+          <label className="grid gap-1 text-sm" htmlFor="city-search">
+            Поиск по каталогу городов
+            <input id="city-search" type="search" value={search} onChange={event => {
+              setSearch(event.target.value);
+              setCity('');
+              setResult(undefined);
+            }} placeholder="Введите название" />
+          </label>
           <div className="grid gap-1 text-sm">
             <label htmlFor="aurora-city">Город</label>
-            <select id="aurora-city" value={city} onChange={event => { setCity(event.target.value); setResult(undefined); }}>
-              {cities.map((item, index) => <option key={item.name} value={index}>{item.name}</option>)}
+            <select id="aurora-city" value={selected} onChange={event => { setCity(event.target.value); setResult(undefined); }}>
+              <option value="" disabled>Выберите город</option>
+              {matching.map(item => <option key={item.index} value={item.index}>{item.name}</option>)}
               <option value="custom">Свои координаты</option>
             </select>
           </div>
+          {!matching.length && <p className="muted text-sm">Городов не найдено. Можно ввести свои координаты.</p>}
           {custom && (
             <div className="grid gap-3 min-[360px]:grid-cols-2">
               <label className="grid gap-1 text-sm">Широта<input name="lat" type="number" min="-90" max="90" step="any" required /></label>
               <label className="grid gap-1 text-sm">Долгота<input name="lon" type="number" min="-180" max="180" step="any" required /></label>
             </div>
           )}
-          <button className="primary" type="submit">Проверить мой город</button>
+          <button className="primary" type="submit" disabled={!selected}>Проверить мой город</button>
         </fieldset>
       </form>
       <div className="result mt-5" aria-live="polite">
@@ -80,4 +96,5 @@ export function AuroraPanel() {
     </section>
   );
 }
+
 
