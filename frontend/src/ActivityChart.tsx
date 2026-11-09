@@ -18,6 +18,8 @@ const stormThreshold: Plugin<'line'> = {
   },
 };
 
+const flareClasses = new Map([[1e-8, 'A'], [1e-7, 'B'], [1e-6, 'C'], [1e-5, 'M'], [1e-4, 'X']]);
+
 Chart.register(LineController, LineElement, PointElement, LinearScale, LogarithmicScale, Tooltip);
 
 function chartPoints(points: Sample[], expectedStep: number) {
@@ -52,7 +54,11 @@ export function ActivityChart({ points, title, solar = false }: {
           data: chartPoints(points, solar ? 60_000 : 10_800_000),
           borderColor: solar ? '#95553c' : '#34604f',
           borderWidth: 2,
-          pointRadius: points.length === 1 ? 3 : 0,
+          pointRadius: ({ dataset, dataIndex }) => {
+            const previous = dataset.data[dataIndex - 1];
+            const next = dataset.data[dataIndex + 1];
+            return previous?.y == null && next?.y == null ? 3 : 0;
+          },
           pointHoverRadius: 4,
           tension: 0,
         }],
@@ -78,7 +84,7 @@ export function ActivityChart({ points, title, solar = false }: {
           y: solar ? {
             type: 'logarithmic',
             grid: { color: '#eaeaea' },
-            ticks: { color: '#5c625a' },
+            ticks: { color: '#5c625a', callback: value => flareClasses.get(Number(value)) ?? '' },
           } : {
             type: 'linear',
             min: 0,
@@ -110,6 +116,7 @@ export function ActivityChart({ points, title, solar = false }: {
       <figcaption className="muted mt-3 text-sm">
         {points.length} измерений · {chartTime(points[0].time, zone)} — {chartTime(points[points.length - 1].time, zone)}
       </figcaption>
+      {solar && <p className="muted mt-1 text-xs">A, B, C, M, X · уровни рентгеновского потока GOES</p>}
       {!solar && <p className="muted mt-1 text-xs">Пунктир · порог бури Kp 5</p>}
       <details className="mt-3 text-sm">
         <summary className="cursor-pointer">Последние измерения</summary>
@@ -133,5 +140,6 @@ export function ActivityChart({ points, title, solar = false }: {
     </figure>
   );
 }
+
 
 
