@@ -19,6 +19,8 @@ npm run dev --prefix frontend
 
 NOAA SWPC и прямой API NASA CCMC DONKI доступны без ключей.
 
+Координаты передаются в [Open-Meteo](https://open-meteo.com/en/docs) при проверке облачности. Публичный тариф Open-Meteo предназначен для некоммерческого использования. Оценка темноты использует [формулы солнечной высоты NOAA](https://gml.noaa.gov/grad/solcalc/solareqns.PDF).
+
 ## API
 
 [Спецификация OpenAPI](docs/openapi.json). Ответы внешних лент содержат заголовки `X-Feed-Received-At` и `X-Feed-Stale`.
@@ -53,5 +55,6 @@ npm run test:e2e
 Playwright запускает Vite и подставляет ответы API. Тесты проходят в профилях настольного и мобильного Chromium.
 
 [План разработки](docs/ROADMAP.md)
+
 
 

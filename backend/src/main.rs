@@ -175,6 +175,21 @@ async fn aurora(
     ))
 }
 
+async fn cloud(
+    State(feeds): AppState,
+    query: Result<Query<Coordinates>, QueryRejection>,
+) -> Result<Json<feeds::CloudCover>, ApiError> {
+    let Query(point) = query.map_err(|_| api_error(StatusCode::BAD_REQUEST, "invalid_query"))?;
+    if !valid_coordinates(point.lat, point.lon) {
+        return Err(api_error(StatusCode::BAD_REQUEST, "invalid_coordinates"));
+    }
+    feeds
+        .cloud_cover(point.lat, point.lon)
+        .await
+        .map(Json)
+        .map_err(|e| upstream("Open-Meteo", e))
+}
+
 fn router(feeds: Feeds) -> Router {
     Router::new()
         .route(
@@ -186,6 +201,7 @@ fn router(feeds: Feeds) -> Router {
         .route("/api/xray", get(xray))
         .route("/api/storms", get(storms))
         .route("/api/aurora", get(aurora))
+        .route("/api/cloud", get(cloud))
         .with_state(Arc::new(feeds))
 }
 

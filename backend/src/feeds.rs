@@ -78,12 +78,24 @@ async fn fetch_json<T: DeserializeOwned>(
 
 const NOAA: &str = "https://services.swpc.noaa.gov";
 
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct CloudCover {
+    pub cloud_cover: Option<u8>,
+    pub time: String,
+}
+
+#[derive(serde::Deserialize)]
+struct CloudResponse {
+    current: CloudCover,
+}
+
 pub struct Feeds {
     client: Client,
     noaa_base: String,
     nasa_url: String,
     noaa_cooldown: Mutex<Option<Instant>>,
     nasa_cooldown: Mutex<Option<Instant>>,
+    weather_cooldown: Mutex<Option<Instant>>,
     kp: Cache<Vec<Sample>>,
     forecast: Cache<Vec<Sample>>,
     xray: Cache<Vec<Sample>>,
@@ -103,6 +115,7 @@ impl Feeds {
             nasa_url: "https://ccmc.gsfc.nasa.gov/DONKI-API/get/GST".into(),
             noaa_cooldown: Mutex::new(None),
             nasa_cooldown: Mutex::new(None),
+            weather_cooldown: Mutex::new(None),
             kp: Cache::new(five_minutes),
             forecast: Cache::new(five_minutes),
             xray: Cache::new(Duration::from_secs(60)),
@@ -168,6 +181,22 @@ impl Feeds {
                 ))
             })
             .await
+    }
+
+    pub async fn cloud_cover(&self, lat: f64, lon: f64) -> Result<CloudCover, FeedError> {
+        let data: CloudResponse = fetch_json(
+            self.client
+                .get("https://api.open-meteo.com/v1/forecast")
+                .query(&[
+                    ("latitude", lat.to_string()),
+                    ("longitude", lon.to_string()),
+                    ("current", "cloud_cover".into()),
+                    ("timezone", "UTC".into()),
+                ]),
+            &self.weather_cooldown,
+        )
+        .await?;
+        Ok(data.current)
     }
 
     pub async fn storms(&self) -> Result<Cached<Vec<DonkiStorm>>, FeedError> {

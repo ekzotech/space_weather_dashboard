@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { get, type Aurora } from './api';
 import { utc } from './format';
 
@@ -59,6 +59,8 @@ export function AuroraPanel() {
   const selected = city === 'custom' || matching.some(item => String(item.index) === city)
     ? city : matching.length === 1 ? String(matching[0].index) : '';
   const [result, setResult] = useState<Result>();
+  const [cloud, setCloud] = useState<{ cloud_cover: number | null; time: string } | null>();
+  const cloudRequest = useRef<AbortController | undefined>(undefined);
   const custom = selected === 'custom';
 
   function locate() {
@@ -98,8 +100,16 @@ export function AuroraPanel() {
       }));
     } catch { /* storage unavailable */ }
     setResult({ status: 'loading' });
+    const query = new URLSearchParams({ lat: String(point.lat), lon: String(point.lon) });
+    cloudRequest.current?.abort();
+    const request = new AbortController();
+    cloudRequest.current = request;
+    setCloud(undefined);
+    void get<{ cloud_cover: number | null; time: string }>('cloud?' + query, request.signal).then(
+      value => { if (!request.signal.aborted) setCloud(value); },
+      () => { if (!request.signal.aborted) setCloud(null); },
+    );
     try {
-      const query = new URLSearchParams({ lat: String(point.lat), lon: String(point.lon) });
       const data = await get<Aurora>('aurora?' + query);
       setResult({ status: 'ready', place: placeLabel(point), data });
     } catch {
@@ -165,10 +175,14 @@ export function AuroraPanel() {
             </p>}
             <p className="muted mt-2 text-sm">Наблюдение модели · {utc(result.data.observation_time)}</p>
             <p className="muted mt-1 text-sm">Время прогноза · {utc(result.data.forecast_time)}</p>
+            <p className="muted mt-2 text-sm">
+              {cloud === undefined ? 'Загружаем облачность…' : cloud?.cloud_cover == null ? 'Нет данных об облачности.' :
+                'Текущая облачность · ' + cloud.cloud_cover + '% · ' + utc(cloud.time + 'Z')}
+            </p>
           </>
         )}
       </div>
-      <p className="muted mt-4 text-sm">Модель оценивает вероятность сияния над точкой. Наблюдение также зависит от темноты, облачности и засветки.</p>
+      <p className="muted mt-4 text-sm">Модель оценивает вероятность сияния над точкой. Наблюдение также зависит от темноты, облачности и засветки. Для оценки облачности координаты передаются Open-Meteo.</p>
     </section>
   );
 }

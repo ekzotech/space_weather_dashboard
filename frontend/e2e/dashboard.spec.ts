@@ -6,6 +6,7 @@ const second = '2026-10-10T03:00:00Z';
 const peak = { id: 'example', start: second, peak_kp: 6.33, level: 2, linked_events: [] };
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api/cloud?*', route => route.fulfill({ json: { cloud_cover: 42, time: '2026-10-10T00:00' } }));
   await page.route('**/api/kp', route => route.fulfill({
     json: [{ time: first, value: 3 }, { time: second, value: 6.33 }],
   }));
@@ -122,4 +123,5 @@ test('groups contiguous storm intervals and handles calm or missing forecasts', 
   await page.reload();
   await expect(page.getByText('Актуального прогноза пока нет.')).toBeVisible();
 });
+
 
