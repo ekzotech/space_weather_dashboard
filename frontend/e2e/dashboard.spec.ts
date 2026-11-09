@@ -125,3 +125,26 @@ test('groups contiguous storm intervals and handles calm or missing forecasts', 
 });
 
 
+test('searches homonymous cities without requiring the letter ё', async ({ page }) => {
+  await page.route('**/api/aurora?*', route => {
+    expect(new URL(route.request().url()).searchParams.get('lat')).toBe('55.67');
+    return route.fulfill({ json: { probability: 0, observation_time: first, forecast_time: second, stale: false } });
+  });
+  await page.goto('/');
+  await page.getByRole('searchbox').fill('Березовский');
+  await expect(page.getByRole('option', { name: 'Берёзовский · Свердловская область' })).toHaveCount(1);
+  await page.getByRole('combobox', { name: 'Город', exact: true }).selectOption({ label: 'Берёзовский · Кемеровская область' });
+  await page.getByRole('button', { name: 'Проверить мой город' }).click();
+  await expect(page.getByText('0%', { exact: true })).toBeVisible();
+  await expect(page.getByText('Текущая облачность · 42%', { exact: false })).toBeVisible();
+});
+
+test('fills the manual fields from browser geolocation', async ({ context, page }) => {
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: 68.97, longitude: 33.08 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Использовать моё местоположение' }).click();
+  await expect(page.getByLabel('Широта')).toHaveValue('68.97000');
+  await expect(page.getByLabel('Долгота')).toHaveValue('33.08000');
+});
+
