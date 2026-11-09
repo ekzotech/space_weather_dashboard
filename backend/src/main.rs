@@ -14,7 +14,7 @@ use axum::{
     http::{HeaderMap, HeaderValue, StatusCode},
     routing::get,
 };
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Days, Duration, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -104,6 +104,8 @@ async fn xray(State(feeds): AppState) -> Result<ApiResponse<Vec<Sample>>, ApiErr
 #[derive(Deserialize)]
 struct StormFilter {
     min_kp: Option<f64>,
+    start: Option<NaiveDate>,
+    end: Option<NaiveDate>,
 }
 
 async fn storms(
@@ -115,14 +117,28 @@ async fn storms(
     if !(5.0..=9.0).contains(&min) {
         return Err(api_error(StatusCode::BAD_REQUEST, "invalid_min_kp"));
     }
-    let rows = feeds
-        .storms()
-        .await
-        .map_err(|e| upstream("NASA DONKI", e))?;
+    let today = Utc::now().date_naive();
+    let range = match (filter.start, filter.end) {
+        (None, None) => None,
+        (Some(start), Some(end))
+            if start <= end && end <= today && end - start < Duration::days(30) =>
+        {
+            Some((start, end))
+        }
+        _ => return Err(api_error(StatusCode::BAD_REQUEST, "invalid_date_range")),
+    };
+    let rows = match range {
+        None => feeds.storms(today - Days::new(29), today).await,
+        Some((start, end)) => feeds.storms_between(start, end).await,
+    }
+    .map_err(|e| upstream("NASA DONKI", e))?;
     let mut storms = rows
         .value
         .iter()
         .filter_map(nasa::DonkiStorm::as_storm)
+        .filter(|storm| {
+            range.is_none_or(|(start, end)| (start..=end).contains(&storm.start.date_naive()))
+        })
         .collect();
     rank_storms(&mut storms, min);
     Ok((feed_headers(&rows), Json(storms)))

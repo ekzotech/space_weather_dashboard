@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
-use chrono::{Days, Utc};
+use chrono::{NaiveDate, Utc};
 use reqwest::{Client, RequestBuilder};
 use serde::de::DeserializeOwned;
 
@@ -199,20 +199,38 @@ impl Feeds {
         Ok(data.current)
     }
 
-    pub async fn storms(&self) -> Result<Cached<Vec<DonkiStorm>>, FeedError> {
-        self.storms
-            .get(async {
-                let end = Utc::now().date_naive();
-                let start = end - Days::new(30);
-                fetch_json(
-                    self.client.get(&self.nasa_url).query(&[
-                        ("startDate", start.to_string()),
-                        ("endDate", end.to_string()),
-                    ]),
-                    &self.nasa_cooldown,
-                )
-                .await
-            })
-            .await
+    async fn fetch_storms(
+        &self,
+        start: NaiveDate,
+        end: NaiveDate,
+    ) -> Result<Vec<DonkiStorm>, FeedError> {
+        fetch_json(
+            self.client.get(&self.nasa_url).query(&[
+                ("startDate", start.to_string()),
+                ("endDate", end.to_string()),
+            ]),
+            &self.nasa_cooldown,
+        )
+        .await
+    }
+
+    pub async fn storms(
+        &self,
+        start: NaiveDate,
+        end: NaiveDate,
+    ) -> Result<Cached<Vec<DonkiStorm>>, FeedError> {
+        self.storms.get(self.fetch_storms(start, end)).await
+    }
+
+    pub async fn storms_between(
+        &self,
+        start: NaiveDate,
+        end: NaiveDate,
+    ) -> Result<Cached<Vec<DonkiStorm>>, FeedError> {
+        Ok(Cached {
+            value: std::sync::Arc::new(self.fetch_storms(start, end).await?),
+            received_at: Utc::now(),
+            stale: false,
+        })
     }
 }

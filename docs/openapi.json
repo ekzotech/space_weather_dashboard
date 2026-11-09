@@ -272,6 +272,26 @@
               "default": 5
             },
             "required": false
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "description": "UTC date. Supply both boundaries for a range of at most 30 calendar days.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "description": "UTC date. Supply both boundaries for a range of at most 30 calendar days.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
           }
         ],
         "responses": {
