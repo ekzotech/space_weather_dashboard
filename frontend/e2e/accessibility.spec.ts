@@ -68,3 +68,16 @@ test('fits a 320px screen with both chart tables expanded', async ({ page }) => 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 });
 
+test('preserves the aurora form at 200% zoom', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 760 });
+  await page.goto('/');
+  await page.evaluate(() => { document.documentElement.style.zoom = '2'; });
+  const button = page.getByRole('button', { name: 'Проверить мой город' });
+  await expect(button).toBeVisible();
+  const bounds = await button.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(640);
+  await button.click();
+  await expect(page.getByText('24%', { exact: true })).toBeVisible();
+});
+
