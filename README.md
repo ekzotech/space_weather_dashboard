@@ -21,6 +21,8 @@ NOAA SWPC и прямой API NASA CCMC DONKI доступны без ключе
 
 ## API
 
+[Спецификация OpenAPI](docs/openapi.json). Ответы внешних лент содержат заголовки `X-Feed-Received-At` и `X-Feed-Stale`.
+
 | Маршрут | Данные |
 | --- | --- |
 | `GET /api/health` | Проверка запуска сервера |
@@ -51,4 +53,5 @@ npm run test:e2e
 Playwright запускает Vite и подставляет ответы API. Тесты проходят в профилях настольного и мобильного Chromium.
 
 [План разработки](docs/ROADMAP.md)
+
 
